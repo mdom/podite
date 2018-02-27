@@ -1,0 +1,111 @@
+#!/usr/bin/perl
+
+use Mojo::Base -strict;
+
+#use OptArgs2;
+use Mojolicious::Plugin::FeedReader;
+use Mojo::URL;
+use lib 'lib';
+use Mojo::JSON qw(encode_json decode_json);
+use Mojo::File 'path';
+
+my $share_dir = path("$ENV{HOME}/.local/share/ppod/")->make_path;
+
+my $state_file = $share_dir->child('state');
+
+my $cache_dir = $share_dir->child('cache')->make_path;
+
+# my $feed = Mojolicious::Plugin::FeedReader->new->parse_rss( Mojo::URL->new(shift || 'http://feeds.theincomparable.com/gameshow'));
+
+my $mode = shift;
+
+my %modes = (
+    subscribe   => \&subscribe,
+    unsubscribe => \&unsubscribe,
+    update      => \&update,
+);
+
+my $state = read_state();
+
+if ( $modes{$mode} ) {
+    $modes{$mode}->(@ARGV);
+}
+
+write_state($state);
+
+exit 0;
+
+sub download {
+    my ( $name, @episodes ) = @_;
+    ## download explicit episodes
+    if ( $name && @episodes ) {
+        ...;
+    }
+    ## download latest episodes for feed
+    elsif ($name) {
+        ...;
+    }
+    ## download latest episodes for all feeds
+    else {
+        ...;
+    }
+}
+
+sub update {
+    my (@names) = @_;
+    if ( !@names ) {
+        @names = sort keys %{ $state->{subscriptions} };
+    }
+  Feed:
+    for my $name (@names) {
+        my $feed = $state->{subscriptions}->{$name};
+        if ( !$feed ) {
+            warn "Unknown feed $name.\n";
+            next Feed;
+        }
+        my $url = $feed->{url};
+        warn "Updating $name.\n";
+        my $res = Mojo::UserAgent->new->get($url)->result;
+        if ( $res->is_error ) { say $res->message; next; }
+
+        open( my $fh, '>', $cache_dir->child($name) )
+          or die "Can't open cache file: $!\n";
+        print $fh $res->body;
+    }
+    return;
+}
+
+sub unsubscribe {
+    my ($name) = @_;
+    delete $state->{subscriptions}->{$name};
+    my $cache_file = $cache_dir->child($name);
+    if ( -e $cache_file ) {
+        unlink $cache_file or warn "Can't delete $cache_file: $!\n";
+    }
+    return;
+}
+
+sub subscribe {
+    my ( $name, $url ) = @_;
+    $state->{subscriptions}->{$name}->{url} = $url;
+    return;
+}
+
+sub write_state {
+    my ($json) = @_;
+    open( my $fh, '>', $state_file )
+      or die "Can't open state file $state_file: $!\n";
+    print {$fh} encode_json($json);
+    return;
+}
+
+sub read_state {
+    if ( !-e $state_file ) {
+        return {};
+    }
+    open( my $fh, '<', $state_file )
+      or die "Can't open state file $state_file: $!\n";
+    my $content = do { local ($/); <$fh> };
+    my $json = decode_json($content);
+    return $json;
+}
