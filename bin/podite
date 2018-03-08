@@ -42,7 +42,7 @@ sub check {
     update();
     my @names  = sort keys %{ $state->{subscriptions} };
     my $reader = Mojolicious::Plugin::FeedReader->new;
-    my @items;
+    my @download_items;
   Feed:
     for my $name (@names) {
         my $feed  = $reader->parse_rss( $cache_dir->child($name) );
@@ -71,7 +71,7 @@ sub check {
                 my $key = <STDIN>;
                 chomp($key);
                 if ( $key eq 'y' ) {
-                    push @items, $item;
+                    push @download_items, $item;
                     next Item;
                 }
                 elsif ( $key eq 'n' ) {
@@ -107,7 +107,7 @@ sub check {
             }
         }
     }
-    for my $item (@items) {
+    for my $item (@download_items) {
         my $feed_name = $item->{feed_name};
         my $url       = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
         my $file =
