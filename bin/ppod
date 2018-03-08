@@ -15,21 +15,19 @@ my $download_dir = path("$ENV{HOME}/Podcasts")->make_path;
 my $ua = Mojo::UserAgent->new( max_redirects => 5 );
 $ua->proxy->detect;
 
-my $share_dir = path("$ENV{HOME}/.local/share/ppod/")->make_path;
-
+my $share_dir  = path("$ENV{HOME}/.local/share/ppod/")->make_path;
 my $state_file = $share_dir->child('state');
+my $cache_dir  = $share_dir->child('cache')->make_path;
 
-my $cache_dir = $share_dir->child('cache')->make_path;
+my $state = read_state();
 
-my $mode = shift;
+my $mode = shift || 'check';
 
 my %modes = (
     subscribe   => \&subscribe,
     unsubscribe => \&unsubscribe,
     check       => \&check,
 );
-
-my $state = read_state();
 
 if ( $modes{$mode} ) {
     $modes{$mode}->(@ARGV);
@@ -46,56 +44,79 @@ sub check {
     my @items;
   Feed:
     for my $name (@names) {
-        my $feed = $reader->parse_rss( $cache_dir->child($name) );
+        my $feed  = $reader->parse_rss( $cache_dir->child($name) );
+        my @items = @{ $feed->{items} };
       Item:
-        for my $item ( @{ $feed->{items} } ) {
-            if ( $state->{subscriptions}->{$name}->{items}->{ $item->{guid} } )
-            {
+        while ( my $item = shift @items ) {
+            my $decision =
+              $state->{subscriptions}->{$name}->{items}->{ $item->{guid} }
+              || '';
+            if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
                 next;
             }
-            print encode('UTF-8', $item->{title}), "\n";
-            print encode('UTF-8', wrap( '', '', Mojo::DOM->new( $item->{content} )->all_text )),
 
             ## TODO provide that in Mojo::Feed
             $item->{feed_name} = $name;
 
+            print encode( 'UTF-8', $item->{title} ), "\n";
+            ## TODO write actual renderer
+            ## TODO trim whitespace, see gameshow action castle
+            ## TODO shorten
+            print encode( 'UTF-8',
+                wrap( '', '', Mojo::DOM->new( $item->{content} )->all_text ) ),
               "\n";
             while (1) {
-                print "Download this item [y,n,s,q,?]? ";
+                print "Download this item [y,n,N,s,S,q,?]? ";
                 my $key = <STDIN>;
                 chomp($key);
                 if ( $key eq 'y' ) {
-                    push @items, [ $name, $item ];
+                    push @items, $item;
                     next Item;
                 }
                 elsif ( $key eq 'n' ) {
                     $state->{subscriptions}->{$name}->{items}->{ $item->{guid} }
-                      = 'ignored';
+                      = 'hidden';
                     next Item;
+                }
+                elsif ( $key eq 'N' ) {
+                    for ( $item, @items ) {
+                        $state->{subscriptions}->{$name}->{items}
+                          ->{ $item->{guid} } = 'hidden';
+                    }
+                    next Feed;
+                }
+                elsif ( $key eq 'S' ) {
+                    next Feed;
                 }
                 elsif ( $key eq 'q' ) {
                     last Feed;
                 }
+                elsif ( $key eq 's' ) {
+                    next Item;
+                }
                 else {
                     print "y - download this item\n"
-                      . "n - do not download this item\n"
-                      . "s - leave this item undecided\n"
+                      . "n - do not download this item, never ask again\n"
+                      . "N - do not download this item or any of the remaining ones\n"
+                      . "s - skip this item, ask next time\n"
+                      . "S - skip this feed, ask next time\n"
                       . "q - quit, do not download this item or any other\n";
                     next;
                 }
             }
         }
     }
-        my $url = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
     for my $item (@items) {
         my $feed_name = $item->{feed_name};
+        my $url       = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
         my $file =
           $download_dir->child($feed_name)->child( $url->path->parts->[-1] );
         $file->dirname->make_path;
         say "$url -> $file";
+        ## TODO Add Parallel downloading
         my $tx = $ua->get($url);
         $tx->result->content->asset->move_to($file);
-        $state->{subscriptions}->{$name}->{items}->{ $item->{guid} } =
+        $state->{subscriptions}->{$feed_name}->{items}->{ $item->{guid} } =
           'downloaded';
     }
 }
@@ -114,6 +135,7 @@ sub update {
         }
         my $url = $feed->{url};
         warn "Updating $name.\n";
+        ## TODO Add parallel downloading
         my $res = Mojo::UserAgent->new->get($url)->result;
         if ( $res->is_error ) { say $res->message; next; }
 
