@@ -9,7 +9,7 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
 use Mojo::Util 'dumper', 'encode';
 use Text::Wrap 'wrap';
-use Fcntl ':flock';
+use Fcntl qw(:flock O_RDWR O_CREAT);
 
 my $download_dir = path("$ENV{HOME}/Podcasts")->make_path;
 
@@ -172,10 +172,10 @@ sub write_state {
 }
 
 sub read_state {
-    open( my $fh, '+<', $state_file )
+    sysopen(my $fh, $state_file, O_RDWR|O_CREAT)
       or die "Can't open state file $state_file: $!\n";
     flock( $fh, LOCK_EX | LOCK_NB ) or die "Cannot lock $state_file: $!\n";
     my $content = do { local ($/); <$fh> };
-    my $json = decode_json( $content || {} );
+    my $json = decode_json( $content || '{}' );
     return ( $fh, $json );
 }
