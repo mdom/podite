@@ -55,6 +55,10 @@ sub check {
             }
             print encode('UTF-8', $item->{title}), "\n";
             print encode('UTF-8', wrap( '', '', Mojo::DOM->new( $item->{content} )->all_text )),
+
+            ## TODO provide that in Mojo::Feed
+            $item->{feed_name} = $name;
+
               "\n";
             while (1) {
                 print "Download this item [y,n,s,q,?]? ";
@@ -82,11 +86,11 @@ sub check {
             }
         }
     }
-    for my $d (@items) {
-        my ( $name, $item ) = @$d;
         my $url = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
+    for my $item (@items) {
+        my $feed_name = $item->{feed_name};
         my $file =
-          $download_dir->child($name)->child( $url->path->parts->[-1] );
+          $download_dir->child($feed_name)->child( $url->path->parts->[-1] );
         $file->dirname->make_path;
         say "$url -> $file";
         my $tx = $ua->get($url);
