@@ -26,7 +26,6 @@ my $mode = shift;
 my %modes = (
     subscribe   => \&subscribe,
     unsubscribe => \&unsubscribe,
-    update      => \&update,
     check       => \&check,
 );
 
@@ -41,6 +40,7 @@ write_state($state);
 exit 0;
 
 sub check {
+    update();
     my @names  = sort keys %{ $state->{subscriptions} };
     my $reader = Mojolicious::Plugin::FeedReader->new;
     my @items;
