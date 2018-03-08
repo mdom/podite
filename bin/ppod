@@ -2,7 +2,6 @@
 
 use Mojo::Base -strict;
 
-#use OptArgs2;
 use Mojolicious::Plugin::FeedReader;
 use Mojo::URL;
 use lib 'lib';
