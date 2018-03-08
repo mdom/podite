@@ -16,7 +16,7 @@ my $download_dir = path("$ENV{HOME}/Podcasts")->make_path;
 my $ua = Mojo::UserAgent->new( max_redirects => 5 );
 $ua->proxy->detect;
 
-my $share_dir  = path("$ENV{HOME}/.local/share/ppod/")->make_path;
+my $share_dir  = path("$ENV{HOME}/.local/share/podite/")->make_path;
 my $state_file = $share_dir->child('state');
 my $cache_dir  = $share_dir->child('cache')->make_path;
 
