@@ -9,6 +9,7 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
 use Mojo::Util 'dumper', 'encode';
 use Text::Wrap 'wrap';
+use Fcntl ':flock';
 
 my $download_dir = path("$ENV{HOME}/Podcasts")->make_path;
 
@@ -19,7 +20,7 @@ my $share_dir  = path("$ENV{HOME}/.local/share/ppod/")->make_path;
 my $state_file = $share_dir->child('state');
 my $cache_dir  = $share_dir->child('cache')->make_path;
 
-my $state = read_state();
+my ( $fh, $state ) = read_state();
 
 my $mode = shift || 'check';
 
@@ -33,7 +34,7 @@ if ( $modes{$mode} ) {
     $modes{$mode}->(@ARGV);
 }
 
-write_state($state);
+write_state( $fh, $state );
 
 exit 0;
 
@@ -163,20 +164,18 @@ sub subscribe {
 }
 
 sub write_state {
-    my ($json) = @_;
-    open( my $fh, '>', $state_file )
-      or die "Can't open state file $state_file: $!\n";
-    print {$fh} encode_json($json);
+    my ( $fh, $state ) = @_;
+    seek $fh, 0, 0;
+    truncate $fh, 0;
+    print {$fh} encode_json($state);
     return;
 }
 
 sub read_state {
-    if ( !-e $state_file ) {
-        return {};
-    }
-    open( my $fh, '<', $state_file )
+    open( my $fh, '+<', $state_file )
       or die "Can't open state file $state_file: $!\n";
+    flock( $fh, LOCK_EX | LOCK_NB ) or die "Cannot lock $state_file: $!\n";
     my $content = do { local ($/); <$fh> };
-    my $json = decode_json($content);
-    return $json;
+    my $json = decode_json( $content || {} );
+    return ( $fh, $json );
 }
