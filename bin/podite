@@ -65,12 +65,13 @@ sub check {
             ## TODO provide that in Mojo::Feed
             $item->{feed_name} = $name;
 
+            ## TODO terminal escape
             print "\n", encode( 'UTF-8', underline( $item->{title} ) );
-            ## TODO trim whitespace, see gameshow action castle
-            ## TODO shorten
-            print encode( 'UTF-8',
-                render_dom( Mojo::DOM->new( $item->{content} ) ) )
-              . "\n";
+            my $summary = render_dom( Mojo::DOM->new( $item->{content} ) );
+            if ( length($summary) > 800 ) {
+                $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
+            }
+            print encode( 'UTF-8', $summary ) . "\n";
             while (1) {
                 print "Download this item [y,n,N,s,S,q,?]? ";
                 my $key = <STDIN>;
