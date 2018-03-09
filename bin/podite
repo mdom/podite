@@ -9,11 +9,10 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
 use Mojo::Util 'dumper', 'encode';
 use Text::Wrap 'wrap';
+use Config::Tiny;
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
 use File::stat;
-
-my $download_dir = path("$ENV{HOME}/Podcasts")->make_path;
 
 my $ua = Mojo::UserAgent->new( max_redirects => 5 );
 $ua->proxy->detect;
@@ -21,6 +20,11 @@ $ua->proxy->detect;
 my $share_dir  = path("$ENV{HOME}/.local/share/podite/")->make_path;
 my $state_file = $share_dir->child('state');
 my $cache_dir  = $share_dir->child('cache')->make_path;
+my $config     = read_config();
+
+my $download_dir =
+  path( $config->{general}->{download_dir} || "$ENV{HOME}/Podcasts" )
+  ->make_path;
 
 my ( $fh, $state ) = read_state();
 
@@ -204,4 +208,16 @@ sub read_state {
     my $content = do { local ($/); <$fh> };
     my $json = decode_json( $content || '{}' );
     return ( $fh, $json );
+}
+
+sub read_config {
+    my $config_file = "$ENV{HOME}/.config/podite/podite.conf";
+    if ( -e $config_file ) {
+        my $config = Config::Tiny->read( $config_file, 'utf8' );
+        if ( !$config ) {
+            die "Can't read config file: " . Config::Tiny->errstr . "\n";
+        }
+        return $config;
+    }
+    return {};
 }
