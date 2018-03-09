@@ -15,10 +15,19 @@ sub add {
     push @{ shift->queue }, @_;
 }
 
+sub wait {
+    my $self = shift;
+    if ( @{ $self->queue } ) {
+        $self->start->wait;
+    }
+    return;
+}
+
 sub start {
     my ( $self, $cb ) = @_;
 
     return if !@{ $self->queue };
+
     $self->{running} = 0;
 
     $self->_refresh;

@@ -128,7 +128,8 @@ sub check {
             }
         );
     }
-    $q->start->wait;
+    $q->wait;
+    return;
 }
 
 sub update {
@@ -168,7 +169,7 @@ sub update {
         );
 
     }
-    $q->start->wait;
+    $q->wait;
     return;
 }
 
