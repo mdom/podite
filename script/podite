@@ -31,11 +31,7 @@ my ( $fh, $state ) = read_state();
 
 my $mode = shift || 'check';
 
-my %modes = (
-    subscribe   => \&subscribe,
-    unsubscribe => \&unsubscribe,
-    check       => \&check,
-);
+my %modes = ( check => \&check, );
 
 if ( $modes{$mode} ) {
     $modes{$mode}->(@ARGV);
@@ -45,9 +41,21 @@ write_state( $fh, $state );
 
 exit 0;
 
+sub subscriptions {
+    my %feeds;
+    for my $key ( keys %$config ) {
+        next if $key eq '_';
+        if ( my $url = $config->{$key}->{url} ) {
+            $feeds{$key} = $url;
+        }
+    }
+    return %feeds;
+}
+
 sub check {
     update();
-    my @names  = sort keys %{ $state->{subscriptions} };
+    my %feeds  = subscriptions();
+    my @names  = sort keys %feeds;
     my $reader = Mojolicious::Plugin::FeedReader->new;
     my @download_items;
   Feed:
@@ -189,18 +197,18 @@ sub is_tag {
 
 sub update {
     my (@names) = @_;
+    my %feeds = subscriptions();
     if ( !@names ) {
-        @names = sort keys %{ $state->{subscriptions} };
+        @names = sort keys %feeds;
     }
     my $q = App::podite::URLQueue->new( ua => $ua );
   Feed:
     for my $name (@names) {
-        my $feed = $state->{subscriptions}->{$name};
-        if ( !$feed ) {
+        my $url = $feeds{$name};
+        if ( !$url ) {
             warn "Unknown feed $name.\n";
             next Feed;
         }
-        my $url        = $feed->{url};
         my $cache_file = $cache_dir->child($name);
         my $tx         = $ua->build_tx( GET => $url );
         if ( -e $cache_file ) {
@@ -228,22 +236,6 @@ sub update {
     return;
 }
 
-sub unsubscribe {
-    my ($name) = @_;
-    delete $state->{subscriptions}->{$name};
-    my $cache_file = $cache_dir->child($name);
-    if ( -e $cache_file ) {
-        unlink $cache_file or warn "Can't delete $cache_file: $!\n";
-    }
-    return;
-}
-
-sub subscribe {
-    my ( $name, $url ) = @_;
-    $state->{subscriptions}->{$name}->{url} = $url;
-    return;
-}
-
 sub write_state {
     my ( $fh, $state ) = @_;
     seek $fh, 0, 0;
@@ -262,7 +254,7 @@ sub read_state {
 }
 
 sub read_config {
-    my $config_file = "$ENV{HOME}/.config/podite/podite.conf";
+    my $config_file = "$ENV{HOME}/.podite.conf";
     if ( -e $config_file ) {
         my $config = Config::Tiny->read( $config_file, 'utf8' );
         if ( !$config ) {
