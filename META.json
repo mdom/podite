@@ -1,0 +1,74 @@
+{
+   "abstract" : "command line podcatcher",
+   "author" : [
+      "Mario Domgoergen <mdom@taz.de>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Minilla/v3.0.16, CPAN::Meta::Converter version 2.150010",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "App-podite",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "xt",
+         "inc",
+         "share",
+         "eg",
+         "examples",
+         "author",
+         "builder"
+      ]
+   },
+   "prereqs" : {
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0",
+            "Module::Build::Tiny" : "0.035",
+            "perl" : "5.014000"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "Test::CPAN::Meta" : "0",
+            "Test::MinimumVersion::Fast" : "0.04",
+            "Test::PAUSE::Permissions" : "0.04",
+            "Test::Pod" : "1.41",
+            "Test::Spellunker" : "v0.2.7"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Config::Tiny" : "0",
+            "Mojo::Base" : "0",
+            "Mojo::File" : "0",
+            "Mojo::IOLoop" : "0",
+            "Mojo::JSON" : "0",
+            "Mojo::URL" : "0",
+            "Mojo::UserAgent" : "0",
+            "Mojo::Util" : "0",
+            "Mojolicious::Plugin::FeedReader" : "0",
+            "Text::Wrap" : "0"
+         }
+      }
+   },
+   "release_status" : "unstable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/mdom/podite/issues"
+      },
+      "homepage" : "https://github.com/mdom/podite",
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/mdom/podite.git",
+         "web" : "https://github.com/mdom/podite"
+      }
+   },
+   "version" : "0.01",
+   "x_serialization_backend" : "JSON::PP version 2.27400"
+}
