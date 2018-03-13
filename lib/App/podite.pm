@@ -306,17 +306,39 @@ __END__
 
 =head1 NAME
 
-podite - command line podcatcher
+podite - Command line podcast aggregator
 
-=head1 LICENSE
+=head1 SYNOPSIS
 
-Copyright (C) Mario Domgoergen.
+  podite
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+=head1 DESCRIPTION
+
+podite downloads podcasts from a set of subscribed rss and atom feeds. It
+is optimized for users that don't want to download every podcast from
+the feed.  Instead of loading every podcast, it queries the users which
+podcasts to download.
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2018 Mario Domgoergen E<lt>mario@domgoergen.com<gt>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =head1 AUTHOR
 
-Mario Domgoergen E<lt>mdom@taz.deE<gt>
+Mario Domgoergen
 
 =cut
+

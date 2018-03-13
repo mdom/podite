@@ -1,12 +1,12 @@
 {
-   "abstract" : "command line podcatcher",
+   "abstract" : "Command line podcast aggregator",
    "author" : [
-      "Mario Domgoergen <mdom@taz.de>"
+      "Mario Domgoergen"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v3.0.16, CPAN::Meta::Converter version 2.150010",
    "license" : [
-      "perl_5"
+      "gpl_3"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
@@ -28,9 +28,8 @@
    "prereqs" : {
       "configure" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : "0",
             "Module::Build::Tiny" : "0.035",
-            "perl" : "5.014000"
+            "perl" : "5.008_001"
          }
       },
       "develop" : {
@@ -70,5 +69,8 @@
       }
    },
    "version" : "0.01",
+   "x_contributors" : [
+      "Mario Domgoergen <mdom@taz.de>"
+   ],
    "x_serialization_backend" : "JSON::PP version 2.27400"
 }

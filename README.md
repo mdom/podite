@@ -1,29 +1,19 @@
-#!/usr/bin/perl
-
-use Mojo::Base -strict;
-use lib 'lib';
-use App::podite;
-
-exit App::podite->new->run(@ARGV);
-
-__END__
-
-=head1 NAME
+# NAME
 
 podite - Command line podcast aggregator
 
-=head1 SYNOPSIS
+# SYNOPSIS
 
-  podite
+    podite
 
-=head1 DESCRIPTION
+# DESCRIPTION
 
 podite downloads podcasts from a set of subscribed rss and atom feeds. It
 is optimized for users that don't want to download every podcast from
 the feed.  Instead of loading every podcast, it queries the users which
 podcasts to download.
 
-=head1 COPYRIGHT AND LICENSE
+# COPYRIGHT AND LICENSE
 
 Copyright 2018 Mario Domgoergen
 
@@ -38,11 +28,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see &lt;http://www.gnu.org/licenses/>.
 
-=head1 AUTHOR
+# AUTHOR
 
 Mario Domgoergen
-
-=cut
-
