@@ -72,23 +72,11 @@ sub run {
     return 1;
 }
 
-sub subscriptions {
-    my $self = shift;
-    my %feeds;
-    for my $key ( keys %{ $self->config } ) {
-        next if $key eq '_';
-        if ( my $url = $self->config->{$key}->{url} ) {
-            $feeds{$key} = $url;
-        }
-    }
-    return %feeds;
-}
-
 sub check {
     my $self = shift;
     $self->update();
-    my %feeds  = $self->subscriptions;
-    my @names  = sort keys %feeds;
+    my $feeds  = $self->config->{feeds};
+    my @names  = sort keys %$feeds;
     my $reader = Mojolicious::Plugin::FeedReader->new;
     my @download_items;
   Feed:
@@ -231,14 +219,14 @@ sub is_tag {
 
 sub update {
     my ( $self, @names ) = @_;
-    my %feeds = $self->subscriptions;
+    my $feeds = $self->config->{feeds};
     if ( !@names ) {
-        @names = sort keys %feeds;
+        @names = sort keys %$feeds;
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
   Feed:
     for my $name (@names) {
-        my $url = $feeds{$name};
+        my $url = $feeds->{$name}->{url};
         if ( !$url ) {
             warn "Unknown feed $name.\n";
             next Feed;
@@ -296,6 +284,17 @@ sub read_config {
         my $config = Config::Tiny->read( $config_file, 'utf8' );
         if ( !$config ) {
             die "Can't read config file: " . Config::Tiny->errstr . "\n";
+        }
+        my %feeds;
+        my $root = $config->{_};
+        for my $key ( keys %{$config} ) {
+            next if !$config->{$key}->{url};
+            $config->{feeds}->{$key} = {
+
+                # copy defaults
+                %{ $config->{$key} }
+            };
+            delete $config->{$key};
         }
         return $config;
     }
