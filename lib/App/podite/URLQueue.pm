@@ -40,12 +40,12 @@ sub _refresh {
 
     my $worker = $self->worker;
     while ( $self->{running} < $worker
-        and my ($tx, $cb ) = splice(@{ $self->queue }, 0, 2) )
+        and my ( $tx, $cb ) = splice( @{ $self->queue }, 0, 2 ) )
     {
         $self->{running}++;
         my $end = $self->delay->begin;
 
-        if ( !ref($tx) || ! $tx->isa('Mojo::Transaction') ) {
+        if ( !ref($tx) || !$tx->isa('Mojo::Transaction') ) {
             $tx = $self->ua->build_tx( GET => $tx );
         }
 
@@ -53,7 +53,8 @@ sub _refresh {
             $tx,
             sub {
                 my ( $ua, $tx ) = @_;
-		$cb->( $ua, $tx );
+                $cb->( $ua, $tx );
+
                 # refresh worker pool
                 $self->{running}--;
                 $self->_refresh;
