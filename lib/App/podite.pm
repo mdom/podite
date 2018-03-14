@@ -116,7 +116,7 @@ sub check {
                     next Item;
                 }
                 elsif ( $key eq 'N' ) {
-                    for ( $item, @items ) {
+                    for my $item ( $item,  @items ) {
                         $self->state->{subscriptions}->{$name}->{items}
                           ->{ $item->{guid} } = 'hidden';
                     }
