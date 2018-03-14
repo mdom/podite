@@ -23,7 +23,7 @@ is(
     '/home/bar/Podcasts/foo/sample_podcast.mp3'
 );
 $app->config->{feeds}->{foo}->{output_filename} =
-  '<%= "$feed_name/$title_filename.$remote_ext" %>';
+  '<%= $feed_name %>/<%== $title %>.<%= $ext %>';
 is( $app->output_filename( $item, $url ),
     '/home/bar/Podcasts/foo/attachmentenclosure-example.mp3' );
 

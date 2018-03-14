@@ -167,9 +167,10 @@ sub output_filename {
     my ( $self, $item, $url ) = @_;
     my $feed_name = $item->{feed_name};
     my $template  = $self->config->{feeds}->{$feed_name}->{output_filename}
-      || '<%= "$feed_name/$remote_filename" %>';
+      || '<%= "$feed_name/$filename" %>';
     $template .= '\\';
-    my $mt = Mojo::Template->new( vars => 1 );
+    my $mt =
+      Mojo::Template->new( vars => 1, escape => sub { slugify( $_[0], 1 ) } );
     my $remote_filename = $url->path->parts->[-1];
     my $download_dir =
       path( $self->config->{feeds}->{$feed_name}->{download_dir} );
@@ -178,12 +179,11 @@ sub output_filename {
         $mt->render(
             $template,
             {
-                remote_filename => $url->path->parts->[-1],
-                feed_name       => $feed_name,
-                title_filename  => slugify( $item->{title} ),
-                title           => $item->{title},
-                remote_ext      => $remote_ext,
-                download_dir    => $download_dir,
+                filename     => $url->path->parts->[-1],
+                feed_name    => $feed_name,
+                title        => $item->{title},
+                ext          => $remote_ext,
+                download_dir => $download_dir,
             }
         )
     );
