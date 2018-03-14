@@ -3,9 +3,10 @@ use Mojo::Base -base;
 
 use Mojolicious::Plugin::FeedReader;
 use Mojo::URL;
+use Mojo::Template;
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
-use Mojo::Util 'encode';
+use Mojo::Util 'encode', 'slugify';
 use Text::Wrap 'wrap';
 use Config::Tiny;
 use Fcntl qw(:flock O_RDWR O_CREAT);
@@ -31,10 +32,6 @@ has cache_dir => sub {
     shift->share_dir->child('cache');
 };
 
-has download_dir => sub {
-    path( shift->config->{general}->{download_dir} || "$ENV{HOME}/Podcasts" );
-};
-
 has config => sub {
     shift->read_config;
 };
@@ -47,7 +44,9 @@ has state => sub {
 
 sub DESTROY {
     my $self = shift;
-    $self->write_state;
+    if ( $self->state_fh ) {
+        $self->write_state;
+    }
 }
 
 sub run {
@@ -58,7 +57,6 @@ sub run {
 
     $self->share_dir->make_path;
     $self->cache_dir->make_path;
-    $self->download_dir->make_path;
 
     ## TODO Do we even want to suport subcommands?
     my $mode = shift @argv || 'check';
@@ -116,7 +114,7 @@ sub check {
                     next Item;
                 }
                 elsif ( $key eq 'N' ) {
-                    for my $item ( $item,  @items ) {
+                    for my $item ( $item, @items ) {
                         $self->state->{subscriptions}->{$name}->{items}
                           ->{ $item->{guid} } = 'hidden';
                     }
@@ -146,25 +144,54 @@ sub check {
 
     my $q = App::podite::URLQueue->new( ua => $self->ua );
     for my $item (@download_items) {
-        my $feed_name = $item->{feed_name};
-        my $url       = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
-        my $file =
-          $self->download_dir->child($feed_name)
-          ->child( $url->path->parts->[-1] );
-        $file->dirname->make_path;
-        say "$url -> $file";
+        my $feed_name       = $item->{feed_name};
+        my $url             = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
+        my $output_filename = $self->output_filename( $item, $url );
+        $output_filename->dirname->make_path;
+        say "$url -> $output_filename";
         $q->add(
             $url => sub {
                 my ( $ua, $tx ) = @_;
-                $tx->result->content->asset->move_to($file);
+                $tx->result->content->asset->move_to($output_filename);
                 $self->state->{subscriptions}->{$feed_name}->{items}
                   ->{ $item->{guid} } = 'downloaded';
-                warn "Download $file finished\n";
+                warn "Download $output_filename finished\n";
             }
         );
     }
     $q->wait;
     return 0;
+}
+
+sub output_filename {
+    my ( $self, $item, $url ) = @_;
+    my $feed_name = $item->{feed_name};
+    my $template  = $self->config->{feeds}->{$feed_name}->{output_filename}
+      || '<%= "$feed_name/$remote_filename" %>';
+    $template .= '\\';
+    my $mt = Mojo::Template->new( vars => 1 );
+    my $remote_filename = $url->path->parts->[-1];
+    my $download_dir =
+      path( $self->config->{feeds}->{$feed_name}->{download_dir} );
+    my ($remote_ext) = $remote_filename =~ /\.([^.]+)$/;
+    my $filename = path(
+        $mt->render(
+            $template,
+            {
+                remote_filename => $url->path->parts->[-1],
+                feed_name       => $feed_name,
+                title_filename  => slugify( $item->{title} ),
+                title           => $item->{title},
+                remote_ext      => $remote_ext,
+                download_dir    => $download_dir,
+            }
+        )
+    );
+
+    if ( !$filename->is_abs ) {
+        $filename = $download_dir->child($filename);
+    }
+    return $filename;
 }
 
 sub underline {
@@ -280,20 +307,20 @@ sub read_state {
 sub read_config {
     my $self        = shift;
     my $config_file = "$ENV{HOME}/.podite.conf";
+    my $defaults    = {
+        download_dir    => "$ENV{HOME}/Podcasts",
+        output_filename => '<%= $feed_name/$remote_filename %>',
+    };
     if ( -e $config_file ) {
         my $config = Config::Tiny->read( $config_file, 'utf8' );
         if ( !$config ) {
             die "Can't read config file: " . Config::Tiny->errstr . "\n";
         }
-        my %feeds;
-        my $root = $config->{_};
         for my $key ( keys %{$config} ) {
             next if !$config->{$key}->{url};
-            $config->{feeds}->{$key} = {
-
-                # copy defaults
-                %{ $config->{$key} }
-            };
+            my $feed_config =
+              { %$defaults, %{ $config->{_} || {} }, %{ $config->{$key} } };
+            $config->{feeds}->{$key} = $feed_config;
             delete $config->{$key};
         }
         return $config;
