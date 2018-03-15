@@ -170,7 +170,7 @@ sub output_filename {
       || '<%= "$feed_name/$filename" %>';
     $template .= '\\';
     my $mt =
-      Mojo::Template->new( vars => 1, escape => sub { slugify( $_[0], 1 ) } );
+      Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
     my $download_dir =
       path( $self->config->{feeds}->{$feed_name}->{download_dir} );
@@ -181,7 +181,7 @@ sub output_filename {
             {
                 filename     => $url->path->parts->[-1],
                 feed_name    => $feed_name,
-                title        => $item->{title},
+                title        => slugify($item->{title}, 1),
                 ext          => $remote_ext,
                 download_dir => $download_dir,
             }
@@ -309,7 +309,7 @@ sub read_config {
     my $config_file = "$ENV{HOME}/.podite.conf";
     my $defaults    = {
         download_dir    => "$ENV{HOME}/Podcasts",
-        output_filename => '<%= $feed_name/$remote_filename %>',
+        output_filename => '<%= "$feed_name/$title.$ext" %>',
     };
     if ( -e $config_file ) {
         my $config = Config::Tiny->read( $config_file, 'utf8' );
