@@ -1,7 +1,7 @@
 package App::podite;
 use Mojo::Base -base;
 
-use Mojolicious::Plugin::FeedReader;
+use Mojo::Feed::Reader;
 use Mojo::URL;
 use Mojo::Template;
 use Mojo::JSON qw(encode_json decode_json);
@@ -12,6 +12,8 @@ use Config::Tiny;
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite;
 use App::podite::URLQueue;
+use App::podite::Iterator;
+use App::podite::UI 'menu', 'command';
 use File::stat;
 
 our $VERSION = "0.01";
@@ -25,15 +27,15 @@ has share_dir => sub {
 };
 
 has state_file => sub {
-    shift->share_dir->child('state');
+    shift->share_dir->child('state2');
 };
 
 has cache_dir => sub {
     shift->share_dir->child('cache');
 };
 
-has config => sub {
-    shift->read_config;
+has feedr => sub {
+    Mojo::Feed::Reader->new;
 };
 
 has 'state_fh';
@@ -49,6 +51,7 @@ sub DESTROY {
     }
 }
 
+
 sub run {
 
     my ( $self, @argv ) = @_;
@@ -58,94 +61,121 @@ sub run {
     $self->share_dir->make_path;
     $self->cache_dir->make_path;
 
-    ## TODO Do we even want to suport subcommands?
-    my $mode = shift @argv || 'check';
-    warn $mode;
-
-    my %allowed_subcommands = ( check => 1 );
-
-    if ( exists $allowed_subcommands{$mode} ) {
-        return $self->$mode(@argv);
-    }
-    return 1;
-}
-
-sub check {
-    my $self = shift;
-    $self->update();
-    my $feeds  = $self->config->{feeds};
-    my @names  = sort keys %$feeds;
-    my $reader = Mojolicious::Plugin::FeedReader->new;
+    my @feeds    = $self->update;
+    my @items    = sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
+    my $iterator = App::podite::Iterator->new( array => \@items );
     my @download_items;
-  Feed:
-    for my $name (@names) {
-        my $feed  = $reader->parse_rss( $self->cache_dir->child($name) );
-        my @items = @{ $feed->{items} };
-      Item:
-        while ( my $item = shift @items ) {
-            my $decision =
-              $self->state->{subscriptions}->{$name}->{items}->{ $item->{guid} }
-              || '';
-            if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
-                next;
-            }
 
-            ## TODO provide that in Mojo::Feed
-            $item->{feed_name} = $name;
-
-            ## TODO terminal escape
-            print "\n", encode( 'UTF-8', underline( $item->{title} ) );
-            my $summary = render_dom( Mojo::DOM->new( $item->{content} ) );
-            if ( length($summary) > 800 ) {
-                $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
-            }
-            print encode( 'UTF-8', $summary ) . "\n";
-            while (1) {
-                print "Download this item [y,n,N,s,S,q,?]? ";
-                my $key = <STDIN>;
-                chomp($key);
-                if ( $key eq 'y' ) {
-                    push @download_items, $item;
-                    next Item;
-                }
-                elsif ( $key eq 'n' ) {
-                    $self->state->{subscriptions}->{$name}->{items}
-                      ->{ $item->{guid} } = 'hidden';
-                    next Item;
-                }
-                elsif ( $key eq 'N' ) {
-                    for my $item ( $item, @items ) {
-                        $self->state->{subscriptions}->{$name}->{items}
-                          ->{ $item->{guid} } = 'hidden';
+    my $menu = menu(
+        commands => [
+            command(
+                title  => 'add feed',
+		prompt => 'url for new feed> '
+                action => sub {
+		    my $url = shift;
+                    if ($url) {
+                        $self->state->{subscriptions}->{$url} = {};
+                        $self->update($url);
                     }
-                    next Feed;
                 }
-                elsif ( $key eq 'S' ) {
-                    next Feed;
+            ),
+            command(
+                title  => 'status',
+                action => sub {
+                    my $i;
+                    for my $feed (@feeds) {
+                        say ++$i . ". " . $feed->title;
+                    }
+                },
+            ),
+            command(
+                title  => 'quit',
+                action => sub {
+                    say "Bye.";
+                    exit 0;
+                },
+            ),
+        ],
+        prompt_msg => 'What now> ',
+        error_msg  => sub { say "Huh ($_[0])?" },
+    );
+
+  $menu->run;
+
+  Item:
+    while ( my $item = $iterator->current ) {
+        my $name = $item->{name};
+        my $decision =
+          $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
+          || '';
+        if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
+	    $iterator->next;
+            next;
+        }
+
+        ## TODO terminal escape
+        print "\n", encode( 'UTF-8', underline( $item->title ) );
+        my $summary = render_dom( Mojo::DOM->new( $item->content ) );
+        if ( length($summary) > 800 ) {
+            $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
+        }
+        print encode( 'UTF-8', $summary ) . "\n";
+        while (1) {
+            print "Download this item [y,n,N,s,S,q,,?]? ";
+            my $key = <STDIN>;
+            chomp($key);
+            if ( $key eq 'y' ) {
+                push @download_items, $item;
+                next Item;
+            }
+            elsif ( $key eq 'n' ) {
+                $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
+                  = 'hidden';
+                $iterator->next;
+                next Item;
+            }
+            elsif ( $key eq 'N' ) {
+                for my $item ( $item, @items ) {
+                    $self->state->{subscriptions}->{$name}->{items}
+                      ->{ $item->id } = 'hidden';
                 }
-                elsif ( $key eq 'q' ) {
-                    last Feed;
-                }
-                elsif ( $key eq 's' ) {
-                    next Item;
-                }
-                else {
-                    print "y - download this item\n"
-                      . "n - do not download this item, never ask again\n"
-                      . "N - do not download this item or any of the remaining ones\n"
-                      . "s - skip this item, ask next time\n"
-                      . "S - skip this feed, ask next time\n"
-                      . "q - quit, do not download this item or any other\n";
-                    next;
-                }
+                next Feed;
+            }
+            elsif ( $key eq 'j' ) {
+                $iterator->next;
+                next Item;
+            }
+            elsif ( $key eq 'k' ) {
+                $iterator->prev;
+                next Item;
+            }
+            elsif ( $key eq 'S' ) {
+                next Item;
+            }
+            elsif ( $key eq 'q' ) {
+                last Item;
+            }
+            elsif ( $key eq 's' ) {
+                $DB::single = 1;
+                $iterator->next;
+                next Item;
+            }
+            else {
+                print "y - download this item\n"
+                  . "n - do not download this item, never ask again\n"
+                  . "N - do not download this item or any of the remaining ones\n"
+                  . "s - skip this item, ask next time\n"
+                  . "S - skip this feed, ask next time\n"
+                  . "q - quit, do not download this item or any other\n";
+                next;
             }
         }
     }
 
     my $q = App::podite::URLQueue->new( ua => $self->ua );
     for my $item (@download_items) {
-        my $feed_name       = $item->{feed_name};
-        my $url             = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
+        my $name            = $item->{name};
+        my $url             = Mojo::URL->new( $item->enclosures->[0]->url );
         my $output_filename = $self->output_filename( $item, $url );
         $output_filename->dirname->make_path;
         say "$url -> $output_filename";
@@ -153,8 +183,8 @@ sub check {
             $url => sub {
                 my ( $ua, $tx ) = @_;
                 $tx->result->content->asset->move_to($output_filename);
-                $self->state->{subscriptions}->{$feed_name}->{items}
-                  ->{ $item->{guid} } = 'downloaded';
+                $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
+                  = 'downloaded';
                 warn "Download $output_filename finished\n";
             }
         );
@@ -166,14 +196,11 @@ sub check {
 sub output_filename {
     my ( $self, $item, $url ) = @_;
     my $feed_name = $item->{feed_name};
-    my $template  = $self->config->{feeds}->{$feed_name}->{output_filename}
-      || '<%= "$feed_name/$filename" %>';
+    my $template  = '"$feed_name/$title.$ext"';
     $template .= '\\';
-    my $mt =
-      Mojo::Template->new( vars => 1 );
+    my $mt = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
-    my $download_dir =
-      path( $self->config->{feeds}->{$feed_name}->{download_dir} );
+    my $download_dir = path( "$ENV{HOME}/Podcasts" );
     my ($remote_ext) = $remote_filename =~ /\.([^.]+)$/;
     my $filename = path(
         $mt->render(
@@ -181,7 +208,7 @@ sub output_filename {
             {
                 filename     => $url->path->parts->[-1],
                 feed_name    => $feed_name,
-                title        => slugify($item->{title}, 1),
+                title        => slugify( $item->title, 1 ),
                 ext          => $remote_ext,
                 download_dir => $download_dir,
             }
@@ -245,44 +272,46 @@ sub is_tag {
 }
 
 sub update {
-    my ( $self, @names ) = @_;
-    my $feeds = $self->config->{feeds};
-    if ( !@names ) {
-        @names = sort keys %$feeds;
+    my ( $self, @urls ) = @_;
+    if ( !@urls ) {
+	    @urls = keys %{ $self->state->{subscriptions} };
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
+    my @feeds;
   Feed:
-    for my $name (@names) {
-        my $url = $feeds->{$name}->{url};
-        if ( !$url ) {
-            warn "Unknown feed $name.\n";
-            next Feed;
-        }
-        my $cache_file = $self->cache_dir->child($name);
+    for my $url (@urls) {
+        my $cache_file = $self->cache_dir->child(slugify($url));
+
         my $tx = $self->ua->build_tx( GET => $url );
         if ( -e $cache_file ) {
             my $date = Mojo::Date->new( stat($cache_file)->mtime );
             $tx->req->headers->if_modified_since($date);
         }
-        warn "Updating $name.\n";
+        warn "Updating $url.\n";
 
         $q->add(
             $tx => sub {
                 my ( $ua, $tx ) = @_;
                 my $res = $tx->result;
-                warn "Fetched $name with rc " . $res->code . "\n";
+                warn "Fetched $url with rc " . $res->code . "\n";
                 if ( $res->is_error ) { say $res->message; return; }
                 if ( $res->code eq 200 ) {
                     open( my $fh, '>', $cache_file )
                       or die "Can't open cache file $cache_file: $!\n";
-                    print $fh $res->body;
+                    my $body = $res->body;
+                    print $fh $body;
+                    push @feeds, $self->feedr->parse($body);
                 }
+		elsif ( $res->code eq 304 ) {
+			if ( -r $cache_file ) {
+				push @feeds, $self->feedr->parse($cache_file);
+			}
+		}
             }
         );
-
     }
     $q->wait;
-    return;
+    return @feeds;
 }
 
 sub write_state {
@@ -304,29 +333,13 @@ sub read_state {
     return $json;
 }
 
-sub read_config {
-    my $self        = shift;
-    my $config_file = "$ENV{HOME}/.podite.conf";
-    my $defaults    = {
+has defaults => sub {
+    {
         download_dir    => "$ENV{HOME}/Podcasts",
         output_filename => '<%= "$feed_name/$title.$ext" %>',
-    };
-    if ( -e $config_file ) {
-        my $config = Config::Tiny->read( $config_file, 'utf8' );
-        if ( !$config ) {
-            die "Can't read config file: " . Config::Tiny->errstr . "\n";
-        }
-        for my $key ( keys %{$config} ) {
-            next if !$config->{$key}->{url};
-            my $feed_config =
-              { %$defaults, %{ $config->{_} || {} }, %{ $config->{$key} } };
-            $config->{feeds}->{$key} = $feed_config;
-            delete $config->{$key};
-        }
-        return $config;
     }
-    return {};
-}
+};
+
 1;
 
 __END__
