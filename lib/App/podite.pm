@@ -1,3 +1,5 @@
+## Please see file perltidy.ERR
+## Please see file perltidy.ERR
 package App::podite;
 use Mojo::Base -base;
 
@@ -51,7 +53,6 @@ sub DESTROY {
     }
 }
 
-
 sub run {
 
     my ( $self, @argv ) = @_;
@@ -61,23 +62,29 @@ sub run {
     $self->share_dir->make_path;
     $self->cache_dir->make_path;
 
-    my @feeds    = $self->update;
-    my @items    = sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
+    my @feeds = $self->update;
+    my @items =
+      sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
     my $iterator = App::podite::Iterator->new( array => \@items );
     my @download_items;
 
     my $menu = menu(
         commands => [
-            command(
-                title  => 'add feed',
-		prompt => 'url for new feed> '
-                action => sub {
-		    my $url = shift;
-                    if ($url) {
-                        $self->state->{subscriptions}->{$url} = {};
-                        $self->update($url);
-                    }
-                }
+            menu(
+                title    => 'manage feeds',
+                commands => [
+                    command(
+                        title  => 'add feed',
+                        args   => 'url for new feed> ',
+                        action => sub {
+                            my $url = shift;
+                            if ($url) {
+                                $self->state->{subscriptions}->{$url} = {};
+                                $self->update($url);
+                            }
+                        },
+                    ),
+                ],
             ),
             command(
                 title  => 'status',
@@ -92,15 +99,13 @@ sub run {
                 title  => 'quit',
                 action => sub {
                     say "Bye.";
-                    exit 0;
+                    return;
                 },
             ),
         ],
-        prompt_msg => 'What now> ',
-        error_msg  => sub { say "Huh ($_[0])?" },
     );
 
-  $menu->run;
+    $menu->run;
 
   Item:
     while ( my $item = $iterator->current ) {
@@ -109,7 +114,7 @@ sub run {
           $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
           || '';
         if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
-	    $iterator->next;
+            $iterator->next;
             next;
         }
 
@@ -198,11 +203,11 @@ sub output_filename {
     my $feed_name = $item->{feed_name};
     my $template  = '"$feed_name/$title.$ext"';
     $template .= '\\';
-    my $mt = Mojo::Template->new( vars => 1 );
+    my $mt              = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
-    my $download_dir = path( "$ENV{HOME}/Podcasts" );
-    my ($remote_ext) = $remote_filename =~ /\.([^.]+)$/;
-    my $filename = path(
+    my $download_dir    = path("$ENV{HOME}/Podcasts");
+    my ($remote_ext)    = $remote_filename =~ /\.([^.]+)$/;
+    my $filename        = path(
         $mt->render(
             $template,
             {
@@ -274,13 +279,13 @@ sub is_tag {
 sub update {
     my ( $self, @urls ) = @_;
     if ( !@urls ) {
-	    @urls = keys %{ $self->state->{subscriptions} };
+        @urls = keys %{ $self->state->{subscriptions} };
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
     my @feeds;
   Feed:
     for my $url (@urls) {
-        my $cache_file = $self->cache_dir->child(slugify($url));
+        my $cache_file = $self->cache_dir->child( slugify($url) );
 
         my $tx = $self->ua->build_tx( GET => $url );
         if ( -e $cache_file ) {
@@ -292,21 +297,27 @@ sub update {
         $q->add(
             $tx => sub {
                 my ( $ua, $tx ) = @_;
-                my $res = $tx->result;
-                warn "Fetched $url with rc " . $res->code . "\n";
-                if ( $res->is_error ) { say $res->message; return; }
-                if ( $res->code eq 200 ) {
-                    open( my $fh, '>', $cache_file )
-                      or die "Can't open cache file $cache_file: $!\n";
-                    my $body = $res->body;
-                    print $fh $body;
-                    push @feeds, $self->feedr->parse($body);
+                my $res = eval { $tx->success };
+                if ( my $res = $tx->success ) {
+                    if ( $res->code eq 200 ) {
+                        open( my $fh, '>', $cache_file )
+                          or die "Can't open cache file $cache_file: $!\n";
+                        my $body = $res->body;
+                        print $fh $body;
+                        push @feeds, $self->feedr->parse($body);
+                    }
+                    elsif ( $res->code eq 304 ) {
+                        if ( -r $cache_file ) {
+                            push @feeds, $self->feedr->parse($cache_file);
+                        }
+                    }
                 }
-		elsif ( $res->code eq 304 ) {
-			if ( -r $cache_file ) {
-				push @feeds, $self->feedr->parse($cache_file);
-			}
-		}
+                else {
+                    my $err = $tx->error;
+                    warn "$err->{code} response: $err->{message}"
+                      if $err->{code};
+                    warn "Connection error: $err->{message}\n";
+                }
             }
         );
     }
