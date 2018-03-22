@@ -1,5 +1,3 @@
-## Please see file perltidy.ERR
-## Please see file perltidy.ERR
 package App::podite;
 use Mojo::Base -base;
 
@@ -8,14 +6,13 @@ use Mojo::URL;
 use Mojo::Template;
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
-use Mojo::Util 'encode', 'slugify';
+use Mojo::Util 'encode', 'slugify', 'monkey_patch';
 use Text::Wrap 'wrap';
-use Config::Tiny;
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite;
 use App::podite::URLQueue;
 use App::podite::Iterator;
-use App::podite::UI 'menu', 'command';
+use App::podite::UI 'menu';
 use File::stat;
 
 our $VERSION = "0.01";
@@ -62,50 +59,68 @@ sub run {
     $self->share_dir->make_path;
     $self->cache_dir->make_path;
 
-    my @feeds = $self->update;
+    my %feeds = $self->update;
     my @items =
-      sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
+      sort { $b->published <=> $a->published }
+      map  { $_->items->each } values %feeds;
     my $iterator = App::podite::Iterator->new( array => \@items );
     my @download_items;
 
-    my $menu = menu(
-        commands => [
-            menu(
-                title    => 'manage feeds',
-                commands => [
-                    command(
-                        title  => 'add feed',
-                        args   => 'url for new feed> ',
-                        action => sub {
-                            my $url = shift;
-                            if ($url) {
-                                $self->state->{subscriptions}->{$url} = {};
-                                $self->update($url);
-                            }
+    menu(
+        {
+            commands => [
+                {
+                    title    => 'manage feeds',
+                    commands => [
+                        {
+                            title  => 'add feed',
+                            args   => 'url for new feed> ',
+                            action => sub {
+                                my $url = shift;
+                                if ($url) {
+                                    $self->state->{subscriptions}->{$url} = {};
+                                    $self->update($url);
+                                }
+				return 1;
+                            },
                         },
-                    ),
-                ],
-            ),
-            command(
-                title  => 'status',
-                action => sub {
-                    my $i;
-                    for my $feed (@feeds) {
-                        say ++$i . ". " . $feed->title;
-                    }
+                        {
+                            title  => 'delete feed',
+                            action => sub {
+                                for my $url (@_) {
+                                    delete $feeds{$url};
+                                    delete $self->state->{subscriptions}
+                                      ->{$url};
+                                }
+				return 1;
+                            },
+                            args => sub {
+                                [ map { [ $feeds{$_}->title => $_ ] }
+                                      keys %feeds ]
+                            },
+                        },
+                    ],
                 },
-            ),
-            command(
-                title  => 'quit',
-                action => sub {
-                    say "Bye.";
-                    return;
+                {
+                    title  => 'status',
+                    action => sub {
+                        my $i;
+                        for my $feed ( values %feeds ) {
+                            say ++$i . ". " . $feed->title;
+                        }
+			return 1;
+                    },
                 },
-            ),
-        ],
+                {
+                    title => 'quit',
+		    action => sub { 0 },
+                }
+            ],
+        }
     );
 
-    $menu->run;
+    say "Bye.";
+    exit 0;
 
   Item:
     while ( my $item = $iterator->current ) {
@@ -282,7 +297,7 @@ sub update {
         @urls = keys %{ $self->state->{subscriptions} };
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-    my @feeds;
+    my %feeds;
   Feed:
     for my $url (@urls) {
         my $cache_file = $self->cache_dir->child( slugify($url) );
@@ -299,17 +314,22 @@ sub update {
                 my ( $ua, $tx ) = @_;
                 my $res = eval { $tx->success };
                 if ( my $res = $tx->success ) {
+                    my $feed;
                     if ( $res->code eq 200 ) {
                         open( my $fh, '>', $cache_file )
                           or die "Can't open cache file $cache_file: $!\n";
                         my $body = $res->body;
                         print $fh $body;
-                        push @feeds, $self->feedr->parse($body);
+                        $feed = $self->feedr->parse($body);
                     }
                     elsif ( $res->code eq 304 ) {
                         if ( -r $cache_file ) {
-                            push @feeds, $self->feedr->parse($cache_file);
+                            $feed = $self->feedr->parse($cache_file);
                         }
+                    }
+                    if ($feed) {
+                        ## TODO add source field in Mojo::Feed (Atom ref="self")
+                        $feeds{$url} = $feed;
                     }
                 }
                 else {
@@ -322,7 +342,7 @@ sub update {
         );
     }
     $q->wait;
-    return @feeds;
+    return %feeds;
 }
 
 sub write_state {

@@ -1,91 +1,144 @@
 package App::podite::UI;
-use Mojo::Base -base;
+use Mojo::Base -strict;
 use Exporter 'import';
 
-our @EXPORT_OK = ('menu','command');
-
-has commands => sub { [] };
-has prompt_msg => 'What now> ';
-has error_msg => sub { say "Huh ($_[0])?"; };
-has 'title';
-
-sub menu {
-	__PACKAGE__->new(@_);
-}
-
-sub command {
-	App::podite::UI::Command->new(@_);
-}
+our @EXPORT_OK = ('menu', 'expand_list');
 
 sub prompt {
-	my ($self, $msg ) = @_;
-	print ($msg || $self->prompt_msg);
-	my $k = <STDIN>;
-	if (!$k) {
-		print "\n";
-		return $k;
-	}
-	chomp($k);
-	return $k;
+    my ($msg) = @_;
+    print $msg;
+    my $k = <STDIN>;
+    if ( !$k ) {
+        print "\n";
+        return $k;
+    }
+    chomp($k);
+    return $k;
 }
 
-sub match {
-	my ($self, $k ) = @_;
-	return if ! defined $k;
-	if ( $k =~ /[0-9]+/ && $k >= 0 && $k <= @{ $self->commands } ) {
-		return $self->commands->[ $k - 1 ];
-	}
-	my @match = grep { $_->title =~ /^\Q$k/ } @{ $self->commands };
-	if ( @match == 1 ) {
-		return $match[0];
-	}
-	return;
+sub list_things {
+    my $idx;
+    for my $thing (@_) {
+        my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
+        say ++$idx, ". $title";
+    }
+    return;
 }
 
-sub run {
-    my $self = shift;
+sub expand_list {
+	my ($list, $length) = @_;
+	my @elements = map { split(',') } split(' ', $list);
+	my @result;
+	for ( @elements ) {
+		/^(-)?(\d)-(\d)$/ && do { push @result, map { $1 ? "-$_" : $_ } ($2 .. $3); next };
+		/^(-)?(\d)-$/ && do { push @result, map { $1 ? "-$_" : $_ } ($2 .. $length); next };
+		push @result, $_;
+	}
+	return @result;
+}
+
+sub multiple_choice {
+    my ( $prompt, $things ) = @_;
     while (1) {
-        say "*** Commands ***";
-        while ( my ( $idx, $val ) = each @{ $self->commands } ) {
-            say STDOUT ($idx + 1 ) . ". " . $val->title;
+        list_things(@$things);
+        my $k = prompt("$prompt> ");
+
+        return if !defined $k;
+
+        next if $k =~ /^\s+$/;
+
+        my $thing;
+        if ( $k =~ /[0-9]+/ && $k >= 0 && $k <= @$things ) {
+            $thing = $things->[ $k - 1 ];
         }
 
-        my $k = $self->prompt;
-
-	if ( ! defined $k ) {
-		say "Bye.";
-		exit 0;
-	}
-
-        if ( my $command = $self->match($k) ) {
-	    if ( $command->isa('App::podite::UI') ) {
-		    $command->run;
-	    }
-	    elsif ($command->isa('App::podite::UI::Command')) {
-		    my @args;
-		    if ( $command->args ) {
-			    push @args, $self->prompt( $command->args );
-		    }
-		    $command->action->(@args);
-	    }
-	    else {
-		    warn "Unknown action for " . $command->title . "\n";
-	    }
+        my @match = grep { $_->[0] =~ /^\Q$k/ } @$things;
+        if ( @match == 1 ) {
+            $thing = $match[0]->[1];
         }
-	elsif ( $k =~ /^\s+$/ ) {
-		next;
-	}
-	else {
-	    $self->error_msg->($k);
-	}
+        if ($thing) {
+            if ( ref($thing) eq 'ARRAY' && @$thing == 2 ) {
+                return $thing->[1];
+            }
+            return $thing;
+        }
+        return '';
     }
 }
 
-package App::podite::UI::Command;
-use Mojo::Base -base;
+sub choice {
+    my ( $prompt, $things ) = @_;
+    while (1) {
+        list_things(@$things);
 
-has 'action';
-has 'title';
-has 'args';
+        my $k = prompt("$prompt> ");
+
+        return if !defined $k;
+
+        next if $k =~ /^\s+$/;
+
+        my $thing;
+        if ( $k =~ /[0-9]+/ && $k >= 0 && $k <= @$things ) {
+            $thing = $things->[ $k - 1 ];
+        }
+
+        my @match = grep { $_->[0] =~ /^\Q$k/ } @$things;
+        if ( @match == 1 ) {
+            $thing = $match[0]->[1];
+        }
+        if ($thing) {
+            if ( ref($thing) eq 'ARRAY' && @$thing == 2 ) {
+                return $thing->[1];
+            }
+            return $thing;
+        }
+        return '';
+    }
+}
+
+sub menu {
+    my $menu = shift;
+
+    $menu->{prompt_msg} ||= 'What now';
+    $menu->{error_msg} ||= sub { say "Huh ($_[0])?" };
+
+    my @commands =
+      grep { $_->{commands} || $_->{action} } @{ $menu->{commands} };
+
+    while (1) {
+        say "*** Commands ***";
+
+        my $command = choice( $menu->{prompt_msg},
+            [ map { [ $_->{title}, $_ ] } @commands ] );
+
+        return if !defined $command;
+
+        if ( !$command ) {
+            $menu->{error_msg}->("");
+            next;
+        }
+
+        if ( $command->{commands} ) {
+            menu($command);
+        }
+        else {
+            my @args;
+            my $title = $command->{title};
+            if ( my $args = $command->{args} ) {
+                if ( ref($args) eq 'CODE' ) {
+                    push @args, choice( $title, $args->() );
+                }
+                elsif ( ref($args) eq 'ARRAY' ) {
+                    push @args, choice( $title, $args );
+                }
+                else {
+                    push @args, prompt($args);
+                }
+            }
+            last if !$command->{action}->(@args);
+        }
+    }
+    return;
+}
 
 1;
