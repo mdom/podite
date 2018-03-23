@@ -6,7 +6,7 @@ use Mojo::URL;
 use Mojo::Template;
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
-use Mojo::Util 'encode', 'slugify', 'monkey_patch';
+use Mojo::Util 'encode', 'slugify';
 use Text::Wrap 'wrap';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite;
@@ -50,6 +50,36 @@ sub DESTROY {
     }
 }
 
+sub status {
+    my ( $self, $url, $feed ) = @_;
+    my $feed_state = $self->state->{subscription}->{$url};
+    my @items      = $feed->items->each;
+    my ($skipped, $new, $total) = (0,0, scalar @items);
+    for my $item (@items) {
+        my $id = $item->id;
+        if ( my $state = $feed_state->{$id} ) {
+	    for ($state) {
+		    /^(downloaded|hidden)$/ && next;
+		    /^skipped$/ && do { $skipped++; next };
+	    }
+        }
+	else {
+            $new++;
+        }
+    }
+    return "$new / $skipped / $total "
+}
+
+sub query_feeds {
+    my %feeds = @_;
+    return sub {
+        [
+            map { [ $feeds{$_}->title => $_ ] }
+              keys %feeds
+        ]
+    },;
+}
+
 sub run {
 
     my ( $self, @argv ) = @_;
@@ -68,6 +98,7 @@ sub run {
 
     menu(
         {
+	    run_on_startup => 'status',
             commands => [
                 {
                     title    => 'manage feeds',
@@ -78,8 +109,11 @@ sub run {
                             action => sub {
                                 my $url = shift;
                                 if ($url) {
-                                    $self->state->{subscriptions}->{$url} = {};
-                                    $self->update($url);
+                                    my %new_feeds = $self->update($url);
+				    if ( $new_feeds{$url} ) {
+					    $self->state->{subscriptions}->{$url} = {};
+					    $feeds{$url} = $new_feeds{$url};
+				    }
                                 }
 				return 1;
                             },
@@ -94,10 +128,7 @@ sub run {
                                 }
 				return 1;
                             },
-                            args => sub {
-                                [ map { [ $feeds{$_}->title => $_ ] }
-                                      keys %feeds ]
-                            },
+                            args => query_feeds(%feeds),
                         },
                     ],
                 },
@@ -105,16 +136,23 @@ sub run {
                     title  => 'status',
                     action => sub {
                         my $i;
-                        for my $feed ( values %feeds ) {
-                            say ++$i . ". " . $feed->title;
+                        while ( my ( $url, $feed ) = each %feeds ) {
+				$DB::single=1;
+			    my $status = $self->status( $url, $feed );
+                            say ++$i . ".  $status  " . $feed->title;
                         }
 			return 1;
                     },
                 },
+		{
+			title => 'download',
+			action => sub { say "Yeah!" },
+			args => query_feeds(%feeds),
+		},
                 {
                     title => 'quit',
 		    action => sub { 0 },
-                }
+                },
             ],
         }
     );

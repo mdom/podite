@@ -2,7 +2,7 @@ package App::podite::UI;
 use Mojo::Base -strict;
 use Exporter 'import';
 
-our @EXPORT_OK = ('menu', 'expand_list');
+our @EXPORT_OK = ( 'menu', 'expand_list' );
 
 sub prompt {
     my ($msg) = @_;
@@ -17,30 +17,37 @@ sub prompt {
 }
 
 sub list_things {
-    my $idx;
-    for my $thing (@_) {
+    my ($things) = @_;
+    my $idx = 1;
+    for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
-        say ++$idx, ". $title";
+        say $idx++, ". $title";
     }
     return;
 }
 
 sub expand_list {
-	my ($list, $length) = @_;
-	my @elements = map { split(',') } split(' ', $list);
-	my @result;
-	for ( @elements ) {
-		/^(-)?(\d)-(\d)$/ && do { push @result, map { $1 ? "-$_" : $_ } ($2 .. $3); next };
-		/^(-)?(\d)-$/ && do { push @result, map { $1 ? "-$_" : $_ } ($2 .. $length); next };
-		push @result, $_;
-	}
-	return @result;
+    my ( $list, $length ) = @_;
+    my @elements = map { split(',') } split( ' ', $list );
+    my @result;
+    for (@elements) {
+        /^(-)?(\d)-(\d)$/ && do {
+            push @result, map { $1 ? "-$_" : $_ } ( $2 .. $3 );
+            next;
+        };
+        /^(-)?(\d)-$/ && do {
+            push @result, map { $1 ? "-$_" : $_ } ( $2 .. $length );
+            next;
+        };
+        push @result, $_;
+    }
+    return @result;
 }
 
 sub multiple_choice {
     my ( $prompt, $things ) = @_;
     while (1) {
-        list_things(@$things);
+        list_things($things);
         my $k = prompt("$prompt> ");
 
         return if !defined $k;
@@ -69,7 +76,7 @@ sub multiple_choice {
 sub choice {
     my ( $prompt, $things ) = @_;
     while (1) {
-        list_things(@$things);
+        list_things($things);
 
         my $k = prompt("$prompt> ");
 
@@ -104,6 +111,15 @@ sub menu {
 
     my @commands =
       grep { $_->{commands} || $_->{action} } @{ $menu->{commands} };
+
+    if ( my $title = $menu->{run_on_startup} ) {
+	    for my $cmd ( @commands ) {
+		    if ( $cmd->{title} eq $title && $cmd->{action}) {
+			    $cmd->{action}->();
+			    last;
+		    }
+	    }
+    }
 
     while (1) {
         say "*** Commands ***";
