@@ -54,20 +54,20 @@ sub status {
     my ( $self, $url, $feed ) = @_;
     my $feed_state = $self->state->{subscription}->{$url};
     my @items      = $feed->items->each;
-    my ($skipped, $new, $total) = (0,0, scalar @items);
+    my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
     for my $item (@items) {
         my $id = $item->id;
         if ( my $state = $feed_state->{$id} ) {
-	    for ($state) {
-		    /^(downloaded|hidden)$/ && next;
-		    /^skipped$/ && do { $skipped++; next };
-	    }
+            for ($state) {
+                /^(downloaded|hidden)$/ && next;
+                /^skipped$/ && do { $skipped++; next };
+            }
         }
-	else {
+        else {
             $new++;
         }
     }
-    return "$new / $skipped / $total "
+    return "$new / $skipped / $total ";
 }
 
 sub query_feeds {
@@ -90,16 +90,11 @@ sub run {
     $self->cache_dir->make_path;
 
     my %feeds = $self->update;
-    my @items =
-      sort { $b->published <=> $a->published }
-      map  { $_->items->each } values %feeds;
-    my $iterator = App::podite::Iterator->new( array => \@items );
-    my @download_items;
 
     menu(
         {
-	    run_on_startup => 'status',
-            commands => [
+            run_on_startup => 'status',
+            commands       => [
                 {
                     title    => 'manage feeds',
                     commands => [
@@ -110,12 +105,13 @@ sub run {
                                 my $url = shift;
                                 if ($url) {
                                     my %new_feeds = $self->update($url);
-				    if ( $new_feeds{$url} ) {
-					    $self->state->{subscriptions}->{$url} = {};
-					    $feeds{$url} = $new_feeds{$url};
-				    }
+                                    if ( $new_feeds{$url} ) {
+                                        $self->state->{subscriptions}->{$url} =
+                                          {};
+                                        $feeds{$url} = $new_feeds{$url};
+                                    }
                                 }
-				return 1;
+                                return 1;
                             },
                         },
                         {
@@ -126,7 +122,7 @@ sub run {
                                     delete $self->state->{subscriptions}
                                       ->{$url};
                                 }
-				return 1;
+                                return 1;
                             },
                             args => query_feeds(%feeds),
                         },
@@ -137,21 +133,21 @@ sub run {
                     action => sub {
                         my $i;
                         while ( my ( $url, $feed ) = each %feeds ) {
-				$DB::single=1;
-			    my $status = $self->status( $url, $feed );
+                            $DB::single = 1;
+                            my $status = $self->status( $url, $feed );
                             say ++$i . ".  $status  " . $feed->title;
                         }
-			return 1;
+                        return 1;
                     },
                 },
-		{
-			title => 'download',
-			action => sub { say "Yeah!" },
-			args => query_feeds(%feeds),
-		},
                 {
-                    title => 'quit',
-		    action => sub { 0 },
+                    title  => 'download',
+                    action => sub { $self->download(%feeds) },
+                    args   => query_feeds(%feeds),
+                },
+                {
+                    title  => 'quit',
+                    action => sub { 0 },
                 },
             ],
         }
@@ -159,96 +155,100 @@ sub run {
 
     say "Bye.";
     exit 0;
+}
 
-  Item:
-    while ( my $item = $iterator->current ) {
-        my $name = $item->{name};
-        my $decision =
-          $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
-          || '';
-        if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
-            $iterator->next;
-            next;
-        }
+sub download {
+    my ( $self, %feeds ) = @_;
 
-        ## TODO terminal escape
-        print "\n", encode( 'UTF-8', underline( $item->title ) );
-        my $summary = render_dom( Mojo::DOM->new( $item->content ) );
-        if ( length($summary) > 800 ) {
-            $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
-        }
-        print encode( 'UTF-8', $summary ) . "\n";
-        while (1) {
-            print "Download this item [y,n,N,s,S,q,,?]? ";
-            my $key = <STDIN>;
-            chomp($key);
-            if ( $key eq 'y' ) {
-                push @download_items, $item;
+    my @downloads;
+  Feed:
+    while ( my ( $url, $feed ) = each %feeds ) {
+        my @items = $feed->items->each;
+      Item:
+        for my $item (@items) {
+            my $decision = $self->item_state( $url => $item ) || '';
+            if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
                 next Item;
             }
-            elsif ( $key eq 'n' ) {
-                $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
-                  = 'hidden';
-                $iterator->next;
-                next Item;
+
+            ## TODO terminal escape
+            print "\n", encode( 'UTF-8', underline( $item->title ) );
+            my $summary = render_dom( Mojo::DOM->new( $item->content ) );
+            if ( length($summary) > 800 ) {
+                $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
             }
-            elsif ( $key eq 'N' ) {
-                for my $item ( $item, @items ) {
-                    $self->state->{subscriptions}->{$name}->{items}
-                      ->{ $item->id } = 'hidden';
+            print encode( 'UTF-8', $summary ) . "\n";
+            while (1) {
+                print "Download this item [y,n,N,s,S,q,,?]? ";
+                my $key = <STDIN>;
+                chomp($key);
+                if ( $key eq 'y' ) {
+                    push @downloads, [ $url => $item ];
+                    next Item;
                 }
-                next Feed;
-            }
-            elsif ( $key eq 'j' ) {
-                $iterator->next;
-                next Item;
-            }
-            elsif ( $key eq 'k' ) {
-                $iterator->prev;
-                next Item;
-            }
-            elsif ( $key eq 'S' ) {
-                next Item;
-            }
-            elsif ( $key eq 'q' ) {
-                last Item;
-            }
-            elsif ( $key eq 's' ) {
-                $DB::single = 1;
-                $iterator->next;
-                next Item;
-            }
-            else {
-                print "y - download this item\n"
-                  . "n - do not download this item, never ask again\n"
-                  . "N - do not download this item or any of the remaining ones\n"
-                  . "s - skip this item, ask next time\n"
-                  . "S - skip this feed, ask next time\n"
-                  . "q - quit, do not download this item or any other\n";
-                next;
+                elsif ( $key eq 'n' ) {
+                    $self->item_state( $url => $item->id => 'hidden' );
+                    next Item;
+                }
+                elsif ( $key eq 'N' ) {
+                    for my $item ( $item, @items ) {
+                        $self->item_state( $url => $item => 'hidden' );
+                    }
+                    next Feed;
+                }
+                elsif ( $key eq 'S' ) {
+                    for my $item ( $item, @items ) {
+                        $self->item_state( $url => $item => 'skipped' );
+                    }
+                    next Feed;
+                }
+                elsif ( $key eq 'q' ) {
+                    last Feed;
+                }
+                elsif ( $key eq 's' ) {
+                    $self->item_state( $url => $item => 'skipped' );
+                    next Item;
+                }
+                else {
+                    print "y - download this item\n"
+                      . "n - do not download this item, never ask again\n"
+                      . "N - do not download this item or any of the remaining ones\n"
+                      . "s - skip this item, ask next time\n"
+                      . "S - skip this feed, ask next time\n"
+                      . "q - quit, do not download this item or any other\n";
+                    next;
+                }
             }
         }
     }
 
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-    for my $item (@download_items) {
-        my $name            = $item->{name};
-        my $url             = Mojo::URL->new( $item->enclosures->[0]->url );
-        my $output_filename = $self->output_filename( $item, $url );
+    for my $download (@downloads) {
+        my ( $feed_url, $item ) = @_;
+        my $download_url = Mojo::URL->new( $item->enclosures->[0]->url );
+        my $output_filename = $self->output_filename( $item, $download_url );
         $output_filename->dirname->make_path;
-        say "$url -> $output_filename";
+        say "$download_url -> $output_filename";
         $q->add(
-            $url => sub {
-                my ( $ua, $tx ) = @_;
+            $download_url => sub {
+                my ( $ua, $tx, ) = @_;
                 $tx->result->content->asset->move_to($output_filename);
-                $self->state->{subscriptions}->{$name}->{items}->{ $item->id }
-                  = 'downloaded';
+                $self->item_state( $feed_url => $item => 'downloaded' );
                 warn "Download $output_filename finished\n";
             }
         );
     }
     $q->wait;
-    return 0;
+    return 1;
+}
+
+sub item_state {
+    my ( $self, $url, $item, $state ) = @_;
+    my $items = $self->state->{subscriptions}->{$url}->{items};
+    if ($state) {
+        return $items->{ $item->id } = $state;
+    }
+    return $items->{ $item->id };
 }
 
 sub output_filename {

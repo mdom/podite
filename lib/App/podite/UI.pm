@@ -113,12 +113,12 @@ sub menu {
       grep { $_->{commands} || $_->{action} } @{ $menu->{commands} };
 
     if ( my $title = $menu->{run_on_startup} ) {
-	    for my $cmd ( @commands ) {
-		    if ( $cmd->{title} eq $title && $cmd->{action}) {
-			    $cmd->{action}->();
-			    last;
-		    }
-	    }
+        for my $cmd (@commands) {
+            if ( $cmd->{title} eq $title && $cmd->{action} ) {
+                $cmd->{action}->();
+                last;
+            }
+        }
     }
 
     while (1) {
