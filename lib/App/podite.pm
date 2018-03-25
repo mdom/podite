@@ -227,9 +227,11 @@ sub download {
 
     my $q = App::podite::URLQueue->new( ua => $self->ua );
     for my $download (@downloads) {
-        my ( $feed_url, $item ) = @_;
+        my ( $feed_url, $item ) = @{$download};
+        my $feed         = $feeds{$feed_url};
         my $download_url = Mojo::URL->new( $item->enclosures->[0]->url );
-        my $output_filename = $self->output_filename( $item, $download_url );
+        my $output_filename =
+          $self->output_filename( $feed => $item => $download_url );
         $output_filename->dirname->make_path;
         say "$download_url -> $output_filename";
         $q->add(
@@ -255,31 +257,30 @@ sub item_state {
 }
 
 sub output_filename {
-    my ( $self, $item, $url ) = @_;
-    my $feed_name = $item->{feed_name};
-    my $template  = '"$feed_name/$title.$ext"';
-    $template .= '\\';
+    my ( $self, $feed, $item, $url ) = @_;
+    my $template = '<%= "$feed_title/$title.$ext" %>';
+
     my $mt              = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
     my $download_dir    = path("$ENV{HOME}/Podcasts");
     my ($remote_ext)    = $remote_filename =~ /\.([^.]+)$/;
-    my $filename        = path(
-        $mt->render(
-            $template,
-            {
-                filename     => $url->path->parts->[-1],
-                feed_name    => $feed_name,
-                title        => slugify( $item->title, 1 ),
-                ext          => $remote_ext,
-                download_dir => $download_dir,
-            }
-        )
+    my $filename        = $mt->render(
+        $template,
+        {
+            filename     => $url->path->parts->[-1],
+            feed_title   => slugify( $feed->title, 1 ),
+            title        => slugify( $item->title, 1 ),
+            ext          => $remote_ext,
+            download_dir => $download_dir,
+        }
     );
+    chomp($filename);
+    my $file = path($filename);
 
-    if ( !$filename->is_abs ) {
-        $filename = $download_dir->child($filename);
+    if ( !$file->is_abs ) {
+        $file = $download_dir->child($file);
     }
-    return $filename;
+    return $file;
 }
 
 sub underline {
