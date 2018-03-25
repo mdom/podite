@@ -56,6 +56,7 @@ sub prompt_list {
         my $k = prompt("$prompt>> ");
 
         return if !defined $k;
+        return if $k eq 'q';
 
         next if $k =~ /^\s+$/;
         my @list = expand_list( $k, scalar @$things );
