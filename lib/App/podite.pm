@@ -53,11 +53,7 @@ sub DESTROY {
 sub query_feeds {
     my %feeds = @_;
     return sub {
-        [
-            map { [ $feeds{$_}->title => $_ ] }
-              sort { lc( $feeds{$a}->title ) cmp lc( $feeds{$b}->title ) }
-              keys %feeds
-        ]
+        [ map { [ $feeds{$_}->title => $_ ] } sort_feeds_by_title( \%feeds ) ]
     };
 }
 
@@ -132,11 +128,18 @@ sub run {
     exit 0;
 }
 
+sub sort_feeds_by_title {
+    my $feeds = shift;
+    return sort { lc( $feeds->{$a}->title ) cmp lc( $feeds->{$b}->title ) }
+      keys %{$feeds};
+}
+
 sub status {
     my ( $self, %feeds ) = @_;
     my @rows;
     my @spec;
-    while ( my ( $url, $feed ) = each %feeds ) {
+    my @feeds = map { [ $_ => $feeds{$_} ] } sort_feeds_by_title( \%feeds );
+    while ( my ( $url, $feed ) = @{ shift @feeds || [] } ) {
         my $feed_state = $self->state->{subscription}->{$url};
         my @items      = $feed->items->each;
         my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
