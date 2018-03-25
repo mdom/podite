@@ -31,12 +31,14 @@ sub expand_list {
     my @elements = map { split(',') } split( ' ', $list );
     my @result;
     for (@elements) {
-        /^(-)?(\d)-(\d)$/ && do {
-            push @result, map { $1 ? "-$_" : $_ } ( $2 .. $3 );
+        /^(\d)-(\d)$/ && do {
+            my ( $from, $to ) = ( $1, $2 );
+            $to = $length if $to > $length;
+            push @result, $from .. $to;
             next;
         };
-        /^(-)?(\d)-$/ && do {
-            push @result, map { $1 ? "-$_" : $_ } ( $2 .. $length );
+        /^(\d)-$/ && do {
+            push @result, $1 .. $length;
             next;
         };
         push @result, $_;
@@ -44,32 +46,23 @@ sub expand_list {
     return @result;
 }
 
-sub multiple_choice {
+sub prompt_list {
     my ( $prompt, $things ) = @_;
     while (1) {
         list_things($things);
-        my $k = prompt("$prompt> ");
+        my $k = prompt("$prompt>> ");
 
         return if !defined $k;
 
         next if $k =~ /^\s+$/;
+        my @list = expand_list( $k, scalar @$things );
+        my @selected = @{$things}[ map { $_ - 1 } @list ];
 
-        my $thing;
-        if ( $k =~ /[0-9]+/ && $k >= 0 && $k <= @$things ) {
-            $thing = $things->[ $k - 1 ];
+        if (@selected) {
+            return
+              map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ } @selected;
         }
-
-        my @match = grep { $_->[0] =~ /^\Q$k/ } @$things;
-        if ( @match == 1 ) {
-            $thing = $match[0]->[1];
-        }
-        if ($thing) {
-            if ( ref($thing) eq 'ARRAY' && @$thing == 2 ) {
-                return $thing->[1];
-            }
-            return $thing;
-        }
-        return '';
+        return;
     }
 }
 
@@ -142,16 +135,16 @@ sub menu {
             my $title = $command->{title};
             if ( my $args = $command->{args} ) {
                 if ( ref($args) eq 'CODE' ) {
-                    push @args, choice( $title, $args->() );
+                    push @args, prompt_list( $title, $args->() );
                 }
                 elsif ( ref($args) eq 'ARRAY' ) {
-                    push @args, choice( $title, $args );
+                    push @args, prompt_list( $title, $args );
                 }
                 else {
                     push @args, prompt($args);
                 }
             }
-            last if !$command->{action}->(@args);
+            last if !$command->{action}->( grep { defined } @args );
         }
     }
     return;

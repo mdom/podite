@@ -142,8 +142,10 @@ sub run {
                 },
                 {
                     title  => 'download',
-                    action => sub { $self->download(%feeds) },
-                    args   => query_feeds(%feeds),
+                    action => sub {
+                        $self->download( map { $_ => $feeds{$_} } @_ );
+                    },
+                    args => query_feeds(%feeds),
                 },
                 {
                     title  => 'quit',
@@ -159,6 +161,7 @@ sub run {
 
 sub download {
     my ( $self, %feeds ) = @_;
+    return 1 if !%feeds;
 
     my @downloads;
   Feed:
