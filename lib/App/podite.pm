@@ -50,26 +50,6 @@ sub DESTROY {
     }
 }
 
-sub status {
-    my ( $self, $url, $feed ) = @_;
-    my $feed_state = $self->state->{subscription}->{$url};
-    my @items      = $feed->items->each;
-    my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
-    for my $item (@items) {
-        my $id = $item->id;
-        if ( my $state = $feed_state->{$id} ) {
-            for ($state) {
-                /^(downloaded|hidden)$/ && next;
-                /^skipped$/ && do { $skipped++; next };
-            }
-        }
-        else {
-            $new++;
-        }
-    }
-    return "$new / $skipped / $total ";
-}
-
 sub query_feeds {
     my %feeds = @_;
     return sub {
@@ -131,15 +111,7 @@ sub run {
                 },
                 {
                     title  => 'status',
-                    action => sub {
-                        my $i;
-                        while ( my ( $url, $feed ) = each %feeds ) {
-                            $DB::single = 1;
-                            my $status = $self->status( $url, $feed );
-                            say ++$i . ".  $status  " . $feed->title;
-                        }
-                        return 1;
-                    },
+                    action => sub { $self->status(%feeds) },
                 },
                 {
                     title  => 'download',
@@ -158,6 +130,43 @@ sub run {
 
     say "Bye.";
     exit 0;
+}
+
+sub status {
+    my ( $self, %feeds ) = @_;
+    my @rows;
+    my @spec;
+    while ( my ( $url, $feed ) = each %feeds ) {
+        my $feed_state = $self->state->{subscription}->{$url};
+        my @items      = $feed->items->each;
+        my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
+        for my $item (@items) {
+            my $id = $item->id;
+            if ( my $state = $feed_state->{$id} ) {
+                for ($state) {
+                    /^(downloaded|hidden)$/ && next;
+                    /^skipped$/ && do { $skipped++; next };
+                }
+            }
+            else {
+                $new++;
+            }
+        }
+        my @row = ( $new, $skipped, $total, $feed->title );
+        for my $i ( 0 .. 2 ) {
+            my $len = length( $row[$i] );
+            @spec[$i] = $len if $len >= ( $spec[$i] // 0 );
+        }
+        push @rows, \@row;
+    }
+    my $fmt = '%-'
+      . length( @rows + 1 ) . 'd.   '
+      . join( '/', map { "\%${_}d" } @spec )
+      . "   %s\n";
+    for my $i ( 0 .. $#rows ) {
+        printf( $fmt, $i + 1, @{ $rows[$i] } );
+    }
+    return 1;
 }
 
 sub download {
