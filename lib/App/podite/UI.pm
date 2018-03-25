@@ -31,6 +31,9 @@ sub expand_list {
     my @elements = map { split(',') } split( ' ', $list );
     my @result;
     for (@elements) {
+        /^\*$/ && do {
+            return ( 0 .. $length );
+        };
         /^(\d)-(\d)$/ && do {
             my ( $from, $to ) = ( $1, $2 );
             $to = $length if $to > $length;
