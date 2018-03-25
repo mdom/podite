@@ -75,9 +75,10 @@ sub query_feeds {
     return sub {
         [
             map { [ $feeds{$_}->title => $_ ] }
+              sort { lc( $feeds{$a}->title ) cmp lc( $feeds{$b}->title ) }
               keys %feeds
         ]
-    },;
+    };
 }
 
 sub run {
