@@ -175,7 +175,7 @@ sub status {
     }
     my $fmt = '%-'
       . length( @rows + 1 ) . 'd.   '
-      . join( '/', map { "\%${_}d" } @spec )
+      . join( ' / ', map { "\%${_}d" } @spec )
       . "   %s\n";
     for my $i ( 0 .. $#rows ) {
         printf( $fmt, $i + 1, @{ $rows[$i] } );
