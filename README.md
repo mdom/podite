@@ -19,22 +19,6 @@ The easiest way to install podite is with
 
     cpanm git://github.com/mdom/podite.git
 
-# USAGE
-
-At startup podite reads it's configuration file at ~/.podite.conf. The
-configuration file uses the INI format. Every podcasts has it's own section,
-the only required property is its url.
-
-    [revolutions]
-    url = http://revolutionspodcast.libsyn.com/rss/
-
-It's probably a good idea to never change the name of the section. The name is
-used in the state file to track which media file was ignored or downloaded.
-
-After that just call podite. It will check the feeds for updates and ask you
-which podcasts you wan't to download, ignore forever or skip for this run.
-After you exit this dialog by pressing q, all selected podcasts will be
-downloaded to ~/Podcasts.
 
 # COPYRIGHT AND LICENSE
 
