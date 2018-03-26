@@ -214,7 +214,7 @@ sub download {
                     next Item;
                 }
                 elsif ( $key eq 'n' ) {
-                    $self->item_state( $url => $item->id => 'hidden' );
+                    $self->item_state( $url => $item => 'hidden' );
                     next Item;
                 }
                 elsif ( $key eq 'N' ) {
