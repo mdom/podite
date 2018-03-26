@@ -192,7 +192,7 @@ sub download {
     while ( my ( $url, $feed ) = each %feeds ) {
         my @items = $feed->items->each;
       Item:
-        for my $item (@items) {
+        while ( my $item = shift @items ) {
             my $decision = $self->item_state( $url => $item ) || '';
             if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
                 next Item;
