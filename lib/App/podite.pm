@@ -140,7 +140,7 @@ sub status {
     my @spec;
     my @feeds = map { [ $_ => $feeds{$_} ] } sort_feeds_by_title( \%feeds );
     while ( my ( $url, $feed ) = @{ shift @feeds || [] } ) {
-        my $feed_state = $self->state->{subscription}->{$url};
+        my $feed_state = $self->state->{subscriptions}->{$url};
         my @items      = $feed->items->each;
         my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
         for my $item (@items) {
