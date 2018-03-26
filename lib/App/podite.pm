@@ -26,11 +26,11 @@ has share_dir => sub {
 };
 
 has state_file => sub {
-    shift->share_dir->child('state2');
+    shift->share_dir->child('state');
 };
 
 has cache_dir => sub {
-    shift->share_dir->child('cache');
+    path("$ENV{HOME}/.cache/podite/");
 };
 
 has feedr => sub {
