@@ -51,10 +51,9 @@ sub DESTROY {
 }
 
 sub query_feeds {
-    my %feeds = @_;
-    return sub {
-        [ map { [ $feeds{$_}->title => $_ ] } sort_feeds_by_title( \%feeds ) ]
-    };
+    my ( $self, $feeds ) = @_;
+    return [ map { [ $feeds->{$_}->title => $_ ] }
+          $self->sort_feeds( title => $feeds ) ];
 }
 
 sub run {
@@ -101,7 +100,7 @@ sub run {
                                 }
                                 return 1;
                             },
-                            args => query_feeds(%feeds),
+                            args => sub { $self->query_feeds( \%feeds ) },
                         },
                     ],
                 },
@@ -114,7 +113,7 @@ sub run {
                     action => sub {
                         $self->download( map { $_ => $feeds{$_} } @_ );
                     },
-                    args => query_feeds(%feeds),
+                    args => sub { $self->query_feeds( \%feeds ) },
                 },
                 {
                     title  => 'quit',
@@ -128,17 +127,30 @@ sub run {
     exit 0;
 }
 
-sub sort_feeds_by_title {
-    my $feeds = shift;
-    return sort { lc( $feeds->{$a}->title ) cmp lc( $feeds->{$b}->title ) }
-      keys %{$feeds};
+sub sort_feeds {
+    my ( $self, $sort_by, $feeds ) = @_;
+    my @urls = keys %{$feeds};
+    if ( $sort_by eq 'title' ) {
+        return
+          sort { lc( $feeds->{$a}->title ) cmp lc( $feeds->{$b}->title ) }
+          @urls;
+    }
+    elsif ( $sort_by eq 'added' ) {
+        my $states = $self->state->{subscriptions};
+        return sort {
+            lc( $states->{$a}->{date_added} ) cmp
+              lc( $states->{$b}->{date_added} )
+        } @urls;
+    }
+    die "Unknown sort key\n";
 }
 
 sub status {
     my ( $self, %feeds ) = @_;
     my @rows;
     my @spec;
-    my @feeds = map { [ $_ => $feeds{$_} ] } sort_feeds_by_title( \%feeds );
+    my @feeds =
+      map { [ $_ => $feeds{$_} ] } $self->sort_feeds( title => \%feeds );
     while ( my ( $url, $feed ) = @{ shift @feeds || [] } ) {
         my $feed_state = $self->state->{subscriptions}->{$url};
         my @items      = $feed->items->each;
