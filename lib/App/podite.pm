@@ -156,8 +156,7 @@ sub status {
         my @items      = $feed->items->each;
         my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
         for my $item (@items) {
-            my $id = $item->id;
-            if ( my $state = $feed_state->{$id} ) {
+            if ( my $state = $feed_state->{items}->{ $item->id } ) {
                 for ($state) {
                     /^(downloaded|hidden)$/ && next;
                     /^skipped$/ && do { $skipped++; next };
