@@ -42,6 +42,8 @@ has state => sub {
     shift->read_state;
 };
 
+has feeds => sub { {} };
+
 sub DESTROY {
     my $self = shift;
     if ( $self->state_fh ) {
@@ -50,9 +52,15 @@ sub DESTROY {
 }
 
 sub query_feeds {
-    my ( $self, $feeds ) = @_;
-    return [ map { [ $feeds->{$_}->title => $_ ] }
-          $self->sort_feeds( title => $feeds ) ];
+    my ($self) = @_;
+    my $query = [ map { [ $_->title => $_ ] } $self->sort_feeds('title') ];
+    push @$query, [ 'New podcast items' => sub { $self->new_podcasts } ];
+    return $query;
+}
+
+sub items {
+    my ( $self, @feeds ) = @_;
+    sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
 }
 
 sub run {
@@ -79,11 +87,10 @@ sub run {
                             action => sub {
                                 my $url = shift;
                                 if ($url) {
-                                    my %new_feeds = $self->update($url);
-                                    if ( $new_feeds{$url} ) {
+                                    $self->update($url);
+                                    if ( $self->feeds->{$url} ) {
                                         $self->state->{subscriptions}->{$url} =
                                           {};
-                                        $feeds{$url} = $new_feeds{$url};
                                     }
                                 }
                                 return 1;
@@ -92,27 +99,27 @@ sub run {
                         {
                             title  => 'delete feed',
                             action => sub {
-                                for my $url (@_) {
-                                    delete $feeds{$url};
+                                for my $feed (@_) {
+                                    delete $self->feeds->{$feed->source};
                                     delete $self->state->{subscriptions}
-                                      ->{$url};
+                                      ->{$feed->source};
                                 }
                                 return 1;
                             },
-                            args => sub { $self->query_feeds( \%feeds ) },
+                            args => sub { $self->query_feeds },
                         },
                     ],
                 },
                 {
                     title  => 'status',
-                    action => sub { $self->status(%feeds) },
+                    action => sub { $self->status },
                 },
                 {
                     title  => 'download',
                     action => sub {
-                        $self->download( map { $_ => $feeds{$_} } @_ );
+                        $self->download( @_ );
                     },
-                    args => sub { $self->query_feeds( \%feeds ) },
+                    args => sub { $self->query_feeds },
                 },
                 {
                     title  => 'quit',
@@ -127,35 +134,30 @@ sub run {
 }
 
 sub sort_feeds {
-    my ( $self, $sort_by, $feeds ) = @_;
-    my @urls = keys %{$feeds};
+    my ( $self, $sort_by ) = @_;
+    my @feeds = values %{ $self->feeds };
     if ( $sort_by eq 'title' ) {
-        return
-          sort { lc( $feeds->{$a}->title ) cmp lc( $feeds->{$b}->title ) }
-          @urls;
+        return sort { lc( $a->title ) cmp lc( $b->title ) } @feeds;
     }
     elsif ( $sort_by eq 'added' ) {
         my $states = $self->state->{subscriptions};
-        return sort {
-            lc( $states->{$a}->{date_added} ) cmp
-              lc( $states->{$b}->{date_added} )
-        } @urls;
+        return map { $_->[1] }
+          sort     { $a->[0] cmp $b->[0] }
+          map { [ $states->{ $_->source }->{date_added}, $_ ] } @feeds;
     }
     die "Unknown sort key\n";
 }
 
 sub status {
-    my ( $self, %feeds ) = @_;
+    my ($self) = @_;
     my @rows;
     my @spec;
-    my @feeds =
-      map { [ $_ => $feeds{$_} ] } $self->sort_feeds( title => \%feeds );
-    while ( my ( $url, $feed ) = @{ shift @feeds || [] } ) {
-        my $feed_state = $self->state->{subscriptions}->{$url};
-        my @items      = $feed->items->each;
+    my @feeds = $self->sort_feeds('title');
+    for my $feed ( @feeds ) {
+        my @items = $feed->items->each;
         my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
         for my $item (@items) {
-            if ( my $state = $feed_state->{items}->{ $item->id } ) {
+            if ( my $state = $self->item_state($item) ) {
                 for ($state) {
                     /^(downloaded|hidden)$/ && next;
                     /^skipped$/ && do { $skipped++; next };
@@ -183,16 +185,18 @@ sub status {
 }
 
 sub download {
-    my ( $self, %feeds ) = @_;
-    return 1 if !%feeds;
+    my ( $self, @feeds ) = @_;
+    return 1 if !@feeds;
 
     my @downloads;
+
   Feed:
-    while ( my ( $url, $feed ) = each %feeds ) {
+    while ( my $feed = shift @feeds ) {
         my @items = $feed->items->each;
       Item:
         while ( my $item = shift @items ) {
-            my $decision = $self->item_state( $url => $item ) || '';
+            my $url = $item->id;
+            my $decision = $self->item_state($item) || '';
             if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
                 next Item;
             }
@@ -209,22 +213,22 @@ sub download {
                 my $key = <STDIN>;
                 chomp($key);
                 if ( $key eq 'y' ) {
-                    push @downloads, [ $url => $item ];
+                    push @downloads, $item;
                     next Item;
                 }
                 elsif ( $key eq 'n' ) {
-                    $self->item_state( $url => $item => 'hidden' );
+                    $self->item_state( $item => 'hidden' );
                     next Item;
                 }
                 elsif ( $key eq 'N' ) {
                     for my $item ( $item, @items ) {
-                        $self->item_state( $url => $item => 'hidden' );
+                        $self->item_state( $item => 'hidden' );
                     }
                     next Feed;
                 }
                 elsif ( $key eq 'S' ) {
                     for my $item ( $item, @items ) {
-                        $self->item_state( $url => $item => 'skipped' );
+                        $self->item_state( $item => 'skipped' );
                     }
                     next Feed;
                 }
@@ -232,7 +236,7 @@ sub download {
                     last Feed;
                 }
                 elsif ( $key eq 's' ) {
-                    $self->item_state( $url => $item => 'skipped' );
+                    $self->item_state( $item => 'skipped' );
                     next Item;
                 }
                 else {
@@ -249,19 +253,16 @@ sub download {
     }
 
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-    for my $download (@downloads) {
-        my ( $feed_url, $item ) = @{$download};
-        my $feed         = $feeds{$feed_url};
+    for my $item (@downloads) {
         my $download_url = Mojo::URL->new( $item->enclosures->[0]->url );
-        my $output_filename =
-          $self->output_filename( $feed => $item => $download_url );
+        my $output_filename = $self->output_filename( $item => $download_url );
         $output_filename->dirname->make_path;
         say "$download_url -> $output_filename";
         $q->add(
             $download_url => sub {
                 my ( $ua, $tx, ) = @_;
                 $tx->result->content->asset->move_to($output_filename);
-                $self->item_state( $feed_url => $item => 'downloaded' );
+                $self->item_state( $item => 'downloaded' );
                 warn "Download $output_filename finished\n";
             }
         );
@@ -271,18 +272,20 @@ sub download {
 }
 
 sub item_state {
-    my ( $self, $url, $item, $state ) = @_;
-    my $items = $self->state->{subscriptions}->{$url}->{items};
+    my ( $self, $item, $state ) = @_;
+    my $url   = $item->feed->source->to_string;
+    my $feed = $self->state->{subscriptions}->{$url};
     if ($state) {
-        return $items->{ $item->id } = $state;
+        return $feed->{items}->{ $item->id } = $state;
     }
-    return $items->{ $item->id };
+    return $feed->{items}->{ $item->id };
 }
 
 sub output_filename {
-    my ( $self, $feed, $item, $url ) = @_;
+    my ( $self, $item, $url ) = @_;
     my $template = '<%= "$feed_title/$title.$ext" %>';
 
+    my $feed            = $item->feed;
     my $mt              = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
     my $download_dir    = path("$ENV{HOME}/Podcasts");
@@ -393,8 +396,8 @@ sub update {
                         }
                     }
                     if ($feed) {
-                        ## TODO add source field in Mojo::Feed (Atom ref="self")
-                        $feeds{$url} = $feed;
+                        $feed->source( Mojo::URL->new($url) );
+                        $self->feeds->{$url} = $feed;
                     }
                 }
                 else {
@@ -419,11 +422,11 @@ sub write_state {
 
 sub read_state {
     my ($self) = @_;
-    my $state_file = $self->state_file;
-    sysopen( my $fh, $state_file, O_RDWR | O_CREAT )
+    my $state_file = path($self->state_file);
+    my $fh = $state_file->open( O_RDWR | O_CREAT )
       or die "Can't open state file $state_file: $!\n";
     flock( $fh, LOCK_EX | LOCK_NB ) or die "Cannot lock $state_file: $!\n";
-    my $content = do { local ($/); <$fh> };
+    my $content = $state_file->slurp;
     my $json = decode_json( $content || '{}' );
     $self->state_fh($fh);
     return $json;
