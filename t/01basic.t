@@ -3,28 +3,21 @@ use Test::More;
 use Mojo::File 'path';
 use Mojo::URL;
 use FindBin qw($Bin);
-use Mojolicious::Plugin::FeedReader;
+use Mojo::Feed;
 use App::podite;
 
-my $reader = Mojolicious::Plugin::FeedReader->new;
-my $feed   = $reader->parse_rss("$Bin/samples/rss20-enclosure.xml");
+my $reader = Mojo::Feed::Reader->new;
+my $feed   = $reader->parse("$Bin/samples/rss20-enclosure.xml");
 ok($feed);
 
 my $app = App::podite->new( state_file => Mojo::File->tempfile('poditeXXXXX') );
 
-my $item = $feed->{items}->[0];
-$item->{feed_name} = 'foo';
-$app->config->{feeds}->{foo}->{download_dir} = path("/home/bar/Podcasts");
+my $item = $feed->items->first;
 
-my $url = Mojo::URL->new( $item->{enclosures}->[0]->{url} );
+my $url = Mojo::URL->new( $item->enclosures->first->url );
 
-is(
-    $app->output_filename( $item, $url ),
-    '/home/bar/Podcasts/foo/sample_podcast.mp3'
-);
-$app->config->{feeds}->{foo}->{output_filename} =
-  '<%= $feed_name %>/<%== $title %>.<%= $ext %>';
 is( $app->output_filename( $item, $url ),
-    '/home/bar/Podcasts/foo/attachmentenclosure-example.mp3' );
+    '/home/devel/mdom/Podcasts/enclosure-demo/attachmentenclosure-example.mp3'
+);
 
 done_testing;
