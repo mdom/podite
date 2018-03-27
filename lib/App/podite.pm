@@ -273,7 +273,7 @@ sub download {
 
 sub item_state {
     my ( $self, $item, $state ) = @_;
-    my $url   = $item->feed->source->to_string;
+    my $url   = $item->feed->source;
     my $feed = $self->state->{subscriptions}->{$url};
     if ($state) {
         return $feed->{items}->{ $item->id } = $state;
