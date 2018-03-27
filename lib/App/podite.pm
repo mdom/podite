@@ -9,7 +9,6 @@ use Mojo::File 'path';
 use Mojo::Util 'encode', 'slugify';
 use Text::Wrap 'wrap';
 use Fcntl qw(:flock O_RDWR O_CREAT);
-use App::podite;
 use App::podite::URLQueue;
 use App::podite::Iterator;
 use App::podite::UI 'menu';
