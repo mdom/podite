@@ -31,7 +31,7 @@ L<cpanminus|https://github.com/miyagawa/cpanminus>:
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2018 Mario Domgoergen
+Copyright 2018 Mario Domgoergen E<lt>mario@domgoergen.comE<gt>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =head1 AUTHOR
 
-Mario Domgoergen
+Mario Domgoergen E<lt>mario@domgoergen.comE<gt>
 
 =cut
 

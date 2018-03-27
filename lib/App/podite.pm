@@ -477,7 +477,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =head1 AUTHOR
 
-Mario Domgoergen
+Mario Domgoergen E<lt>mario@domgoergen.comE<gt>
 
 =cut
 

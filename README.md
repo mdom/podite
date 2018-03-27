@@ -21,7 +21,7 @@ The easiest way to install podite is with
 
 # COPYRIGHT AND LICENSE
 
-Copyright 2018 Mario Domgoergen
+Copyright 2018 Mario Domgoergen <mario@domgoergen.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,4 +38,4 @@ along with this program.  If not, see &lt;http://www.gnu.org/licenses/>.
 
 # AUTHOR
 
-Mario Domgoergen
+Mario Domgoergen <mario@domgoergen.com>
