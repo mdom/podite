@@ -55,7 +55,6 @@ sub DESTROY {
 sub query_feeds {
     my ($self) = @_;
     my $query = [ map { [ $_->title => $_ ] } $self->sort_feeds('title') ];
-    push @$query, [ 'New podcast items' => sub { $self->new_podcasts } ];
     return $query;
 }
 
