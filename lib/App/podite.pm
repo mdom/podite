@@ -10,7 +10,6 @@ use Mojo::Util 'encode', 'slugify';
 use Text::Wrap 'wrap';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
-use App::podite::Iterator;
 use App::podite::UI 'menu';
 use File::stat;
 use Scalar::Util 'refaddr';
