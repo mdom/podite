@@ -32,7 +32,7 @@ sub expand_list {
     my @result;
     for (@elements) {
         /^\*$/ && do {
-            return ( 0 .. $length );
+            return ( 1 .. $length );
         };
         /^(\d)-(\d)$/ && do {
             my ( $from, $to ) = ( $1, $2 );
