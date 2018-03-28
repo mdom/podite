@@ -63,6 +63,27 @@ sub items {
     sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
 }
 
+sub add_feed {
+    my ( $self, $url ) = @_;
+    if ($url) {
+        $self->update($url);
+        if ( $self->feeds->{$url} ) {
+            $self->state->{subscriptions}->{$url} =
+              {};
+        }
+    }
+    return;
+}
+
+sub delete_feed {
+    my ( $self, @feeds ) = @_;
+    for my $feed (@feeds) {
+        delete $self->feeds->{ $feed->source };
+        delete $self->state->{subscriptions}->{ $feed->source };
+    }
+    return;
+}
+
 sub run {
 
     my ( $self, @argv ) = @_;
@@ -85,25 +106,14 @@ sub run {
                             title  => 'add feed',
                             args   => 'url for new feed> ',
                             action => sub {
-                                my $url = shift;
-                                if ($url) {
-                                    $self->update($url);
-                                    if ( $self->feeds->{$url} ) {
-                                        $self->state->{subscriptions}->{$url} =
-                                          {};
-                                    }
-                                }
+                                $self->add_feed(@_);
                                 return 1;
                             },
                         },
                         {
                             title  => 'delete feed',
                             action => sub {
-                                for my $feed (@_) {
-                                    delete $self->feeds->{ $feed->source };
-                                    delete $self->state->{subscriptions}
-                                      ->{ $feed->source };
-                                }
+                                $self->delete_feed(@_);
                                 return 1;
                             },
                             args => sub { $self->query_feeds },
