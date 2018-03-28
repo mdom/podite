@@ -13,6 +13,7 @@ use App::podite::URLQueue;
 use App::podite::Iterator;
 use App::podite::UI 'menu';
 use File::stat;
+use Scalar::Util 'refaddr';
 
 our $VERSION = "0.01";
 
@@ -190,64 +191,61 @@ sub download {
 
     my @downloads;
 
-  Feed:
-    while ( my $feed = shift @feeds ) {
-        my @items = $feed->items->each;
-      Item:
-        while ( my $item = shift @items ) {
-            my $url = $item->id;
-            my $decision = $self->item_state($item) || '';
-            if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
+    my @items =
+      sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
+
+  Item:
+    while ( my $item = shift @items ) {
+        my $url = $item->id;
+        my $decision = $self->item_state($item) || '';
+        if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
+            next Item;
+        }
+
+        ## TODO terminal escape
+        print "\n", encode( 'UTF-8', underline( $item->title ) );
+        my $summary = render_dom( Mojo::DOM->new( $item->content ) );
+        if ( length($summary) > 800 ) {
+            $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
+        }
+        print encode( 'UTF-8', $summary ) . "\n";
+        while (1) {
+            print "Download this item [y,n,N,s,S,q,,?]? ";
+            my $key = <STDIN>;
+            chomp($key);
+            if ( $key eq 'y' ) {
+                push @downloads, $item;
                 next Item;
             }
-
-            ## TODO terminal escape
-            print "\n", encode( 'UTF-8', underline( $item->title ) );
-            my $summary = render_dom( Mojo::DOM->new( $item->content ) );
-            if ( length($summary) > 800 ) {
-                $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
+            elsif ( $key eq 'n' ) {
+                $self->item_state( $item => 'hidden' );
+                next Item;
             }
-            print encode( 'UTF-8', $summary ) . "\n";
-            while (1) {
-                print "Download this item [y,n,N,s,S,q,,?]? ";
-                my $key = <STDIN>;
-                chomp($key);
-                if ( $key eq 'y' ) {
-                    push @downloads, $item;
-                    next Item;
-                }
-                elsif ( $key eq 'n' ) {
-                    $self->item_state( $item => 'hidden' );
-                    next Item;
-                }
-                elsif ( $key eq 'N' ) {
-                    for my $item ( $item, @items ) {
-                        $self->item_state( $item => 'hidden' );
-                    }
-                    next Feed;
-                }
-                elsif ( $key eq 'S' ) {
-                    for my $item ( $item, @items ) {
-                        $self->item_state( $item => 'skipped' );
-                    }
-                    next Feed;
-                }
-                elsif ( $key eq 'q' ) {
-                    last Feed;
-                }
-                elsif ( $key eq 's' ) {
-                    $self->item_state( $item => 'skipped' );
-                    next Item;
-                }
-                else {
-                    print "y - download this item\n"
-                      . "n - do not download this item, never ask again\n"
-                      . "N - do not download this item or any of the remaining ones\n"
-                      . "s - skip this item, ask next time\n"
-                      . "S - skip this feed, ask next time\n"
-                      . "q - quit, do not download this item or any other\n";
-                    next;
-                }
+            elsif ( $key eq 'N' ) {
+                @items =
+                  $self->skip_feed( $item->feed, 'hidden', $item, @items );
+                next Item;
+            }
+            elsif ( $key eq 'S' ) {
+                @items =
+                  $self->skip_feed( $item->feed, 'skipped', $item, @items );
+                next Item;
+            }
+            elsif ( $key eq 'q' ) {
+                last Item;
+            }
+            elsif ( $key eq 's' ) {
+                $self->item_state( $item => 'skipped' );
+                next Item;
+            }
+            else {
+                print "y - download this item\n"
+                  . "n - do not download this item, never ask again\n"
+                  . "N - do not download this item or any of the remaining ones\n"
+                  . "s - skip this item, ask next time\n"
+                  . "S - skip this feed, ask next time\n"
+                  . "q - quit, do not download this item or any other\n";
+                next;
             }
         }
     }
@@ -269,6 +267,18 @@ sub download {
     }
     $q->wait;
     return 1;
+}
+
+sub skip_feed {
+    my ( $self, $feed, $state, @items ) = @_;
+    my @new_items;
+    for my $item (@items) {
+        $self->item_state( $item => $state );
+        if ( refaddr( $item->feed ) != refaddr($feed) ) {
+            push @new_items, $item;
+        }
+    }
+    return @new_items;
 }
 
 sub item_state {
