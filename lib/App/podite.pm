@@ -100,9 +100,9 @@ sub run {
                             title  => 'delete feed',
                             action => sub {
                                 for my $feed (@_) {
-                                    delete $self->feeds->{$feed->source};
+                                    delete $self->feeds->{ $feed->source };
                                     delete $self->state->{subscriptions}
-                                      ->{$feed->source};
+                                      ->{ $feed->source };
                                 }
                                 return 1;
                             },
@@ -117,7 +117,7 @@ sub run {
                 {
                     title  => 'download',
                     action => sub {
-                        $self->download( @_ );
+                        $self->download(@_);
                     },
                     args => sub { $self->query_feeds },
                 },
@@ -153,7 +153,7 @@ sub status {
     my @rows;
     my @spec;
     my @feeds = $self->sort_feeds('title');
-    for my $feed ( @feeds ) {
+    for my $feed (@feeds) {
         my @items = $feed->items->each;
         my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
         for my $item (@items) {
@@ -282,7 +282,7 @@ sub skip_feed {
 
 sub item_state {
     my ( $self, $item, $state ) = @_;
-    my $url   = $item->feed->source;
+    my $url  = $item->feed->source;
     my $feed = $self->state->{subscriptions}->{$url};
     if ($state) {
         return $feed->{items}->{ $item->id } = $state;
@@ -430,9 +430,9 @@ sub write_state {
 }
 
 sub read_state {
-    my ($self) = @_;
-    my $state_file = path($self->state_file);
-    my $fh = $state_file->open( O_RDWR | O_CREAT )
+    my ($self)     = @_;
+    my $state_file = path( $self->state_file );
+    my $fh         = $state_file->open( O_RDWR | O_CREAT )
       or die "Can't open state file $state_file: $!\n";
     flock( $fh, LOCK_EX | LOCK_NB ) or die "Cannot lock $state_file: $!\n";
     my $content = $state_file->slurp;
