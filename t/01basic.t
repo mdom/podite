@@ -17,7 +17,7 @@ my $item = $feed->items->first;
 my $url = Mojo::URL->new( $item->enclosures->first->url );
 
 is( $app->output_filename( $item, $url ),
-    '/home/devel/mdom/Podcasts/enclosure-demo/attachmentenclosure-example.mp3'
+    "$ENV{HOME}/Podcasts/enclosure-demo/attachmentenclosure-example.mp3"
 );
 
 done_testing;
