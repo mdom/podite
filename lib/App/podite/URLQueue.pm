@@ -54,7 +54,7 @@ sub _refresh {
             sub {
                 my ( $ua, $tx ) = @_;
                 $cb->( $ua, $tx ) if $cb;
-		$self->emit( response => $ua, $tx );
+                $self->emit( response => $ua, $tx );
 
                 # refresh worker pool
                 $self->{running}--;
