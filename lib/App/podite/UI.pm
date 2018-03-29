@@ -1,6 +1,7 @@
 package App::podite::UI;
 use Mojo::Base -strict;
 use Exporter 'import';
+use Carp ();
 
 our @EXPORT_OK = ( 'menu', 'expand_list' );
 
@@ -49,7 +50,7 @@ sub expand_list {
     return @result;
 }
 
-sub prompt_list {
+sub choose_many {
     my ( $prompt, $things ) = @_;
     while (1) {
         list_things($things);
@@ -63,14 +64,14 @@ sub prompt_list {
         my @selected = @{$things}[ map { $_ - 1 } @list ];
 
         if (@selected) {
-            return
-              map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ } @selected;
+            return [ map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ }
+                  @selected ];
         }
         return;
     }
 }
 
-sub choice {
+sub choose_one {
     my ( $prompt, $things ) = @_;
     while (1) {
         list_things($things);
@@ -121,7 +122,7 @@ sub menu {
     while (1) {
         say "*** Commands ***";
 
-        my $command = choice( $menu->{prompt_msg},
+        my $command = choose_one( $menu->{prompt_msg},
             [ map { [ $_->{title}, $_ ] } @commands ] );
 
         return if !defined $command;
@@ -137,21 +138,33 @@ sub menu {
         else {
             my @args;
             my $title = $command->{title};
-            if ( my $args = $command->{args} ) {
-                if ( ref($args) eq 'CODE' ) {
-                    push @args, prompt_list( $title, $args->() );
+            my $args  = $command->{args};
+            for my $arg ( @{ $args || [] } ) {
+                my $prompt = $arg->{prompt} || $title;
+
+                if ( $arg->{is} eq 'string' ) {
+                    push @args, prompt($prompt);
                 }
-                elsif ( ref($args) eq 'ARRAY' ) {
-                    push @args, prompt_list( $title, $args );
+                elsif ( $arg->{is} eq 'one' ) {
+                    push @args, choose_one( $prompt, to_array( $arg->{list} ) );
                 }
-                else {
-                    push @args, prompt($args);
+                elsif ( $arg->{is} eq 'many' ) {
+                    push @args,
+                      choose_many( $prompt, to_array( $arg->{list} ) );
                 }
             }
             last if !$command->{action}->( grep { defined } @args );
         }
     }
     return;
+}
+
+sub to_array {
+    my ($thing) = @_;
+    my $type = ref($thing);
+    return $thing if $type eq 'ARRAY';
+    return $thing->() if $type eq 'CODE';
+    return [];
 }
 
 1;

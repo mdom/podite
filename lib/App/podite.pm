@@ -102,8 +102,13 @@ sub run {
                     title    => 'manage feeds',
                     commands => [
                         {
-                            title  => 'add feed',
-                            args   => 'url for new feed> ',
+                            title => 'add feed',
+                            args  => [
+                                {
+                                    prompt => 'url for new feed> ',
+                                    is     => 'string'
+                                }
+                            ],
                             action => sub {
                                 $self->add_feed(@_);
                                 return 1;
@@ -115,7 +120,12 @@ sub run {
                                 $self->delete_feed(@_);
                                 return 1;
                             },
-                            args => sub { $self->query_feeds },
+                            args => [
+                                {
+                                    is   => 'many',
+                                    list => sub { $self->query_feeds }
+                                }
+                            ],
                         },
                     ],
                 },
@@ -128,7 +138,29 @@ sub run {
                     action => sub {
                         $self->download(@_);
                     },
-                    args => sub { $self->query_feeds },
+                    args => [
+                        {
+                            is   => 'many',
+                            list => sub { $self->query_feeds },
+                        },
+                        {
+                            is   => 'one',
+                            list => [
+                                [ all => sub { 1 } ],
+                                [
+                                    new => sub {
+                                        !$self->item_state($_);
+                                    },
+                                ],
+                                [
+                                    'new & skipped' => sub {
+                                        my $state = $self->item_state($_);
+                                        !$state || $state eq 'skipped';
+                                    }
+                                ],
+                            ]
+                        }
+                    ],
                 },
                 {
                     title  => 'quit',
@@ -194,23 +226,24 @@ sub status {
 }
 
 sub download {
-    my ( $self, @feeds ) = @_;
-    return 1 if !@feeds;
+    my ( $self, $feeds, $filter ) = @_;
+
+    return 1 if !$feeds;
+    return 1 if !@$feeds;
+    $filter = $filter ? $filter : sub { $_[0] };
 
     my @downloads;
 
-    my @items =
-      sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
+    my @items = grep { $filter->($_) }
+      sort { $b->published <=> $a->published }
+      map  { $_->items->each } @$feeds;
 
   Item:
     while ( my $item = shift @items ) {
         my $url = $item->id;
-        my $decision = $self->item_state($item) || '';
-        if ( $decision eq 'downloaded' or $decision eq 'hidden' ) {
-            next Item;
-        }
 
         ## TODO terminal escape
+        my $info = $item->feed->title . ' / ' . $self->item_state($item);
         print "\n", encode( 'UTF-8', underline( $item->title ) );
         my $summary = render_dom( Mojo::DOM->new( $item->content ) );
         if ( length($summary) > 800 ) {
@@ -218,7 +251,7 @@ sub download {
         }
         print encode( 'UTF-8', $summary ) . "\n";
         while (1) {
-            print "Download this item [y,n,N,s,S,q,,?]? ";
+            print "Download this item ($info) [y,n,N,s,S,q,,?]? ";
             my $key = <STDIN>;
             chomp($key);
             if ( $key eq 'y' ) {
@@ -443,7 +476,8 @@ sub read_state {
     my $state_file = path( $self->state_file );
     my $fh         = $state_file->open( O_RDWR | O_CREAT )
       or die "Can't open state file $state_file: $!\n";
-    flock( $fh, LOCK_EX | LOCK_NB ) or die "Cannot lock $state_file: $!\n";
+    flock( $fh, LOCK_EX | LOCK_NB )
+      or die "Cannot lock $state_file: $!\n";
     my $content = $state_file->slurp;
     my $json = decode_json( $content || '{}' );
     $self->state_fh($fh);
