@@ -92,7 +92,17 @@ sub run {
     $self->share_dir->make_path;
     $self->cache_dir->make_path;
 
-    my %feeds = $self->update;
+    $self->update;
+
+    if ( my $cmd = shift @argv ) {
+        if ( $cmd eq 'new' ) {
+            $self->download(
+                [ values %{ $self->feeds } ],
+                sub { $self->item_is_new( $_[0] ) }
+            );
+            exit 0;
+        }
+    }
 
     menu(
         {
@@ -153,7 +163,7 @@ sub run {
                                 [ all => sub { 1 } ],
                                 [
                                     new => sub {
-                                        !$self->item_state($_);
+                                        $self->item_is_new( $_[0] );
                                     },
                                 ],
                                 [
@@ -176,6 +186,11 @@ sub run {
 
     say "Bye.";
     exit 0;
+}
+
+sub item_is_new {
+    my ( $self, $item ) = @_;
+    return !$self->item_state($item);
 }
 
 sub sort_feeds {
@@ -247,7 +262,6 @@ sub download {
         my $url = $item->id;
 
         ## TODO terminal escape
-        my $info = $item->feed->title . ' / ' . $self->item_state($item);
         print "\n", encode( 'UTF-8', underline( $item->title ) );
         my $summary = render_dom( Mojo::DOM->new( $item->content ) );
         if ( length($summary) > 800 ) {
@@ -255,7 +269,7 @@ sub download {
         }
         print encode( 'UTF-8', $summary ) . "\n";
         while (1) {
-            print "Download this item ($info) [y,n,N,s,S,q,,?]? ";
+            print "Download this item [y,n,N,s,S,q,,?]? ";
             my $key = <STDIN>;
             chomp($key);
             if ( $key eq 'y' ) {
