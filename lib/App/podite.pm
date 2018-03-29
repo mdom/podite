@@ -131,7 +131,11 @@ sub run {
                 },
                 {
                     title  => 'status',
-                    action => sub { $self->status },
+                    action => sub { $self->status; return 1; },
+                },
+                {
+                    title  => 'update',
+                    action => sub { $self->update; $self->status; return 1; },
                 },
                 {
                     title  => 'download',
