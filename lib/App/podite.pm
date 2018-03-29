@@ -328,12 +328,19 @@ sub skip_feed {
 
 sub item_state {
     my ( $self, $item, $state ) = @_;
-    my $url  = $item->feed->source;
-    my $feed = $self->state->{subscriptions}->{$url};
+    my $url       = $item->feed->source;
+    my $feed      = $self->state->{subscriptions}->{$url};
+    my $old_state = $feed->{items}->{ $item->id };
     if ($state) {
+        ## Do not overwrite process state with user decision
+        if (   ( $old_state || '' ) eq 'downloaded'
+            && ( $state eq 'skipped' || $state eq 'hidden' ) )
+        {
+            return $old_state;
+        }
         return $feed->{items}->{ $item->id } = $state;
     }
-    return $feed->{items}->{ $item->id };
+    return $old_state;
 }
 
 sub output_filename {
