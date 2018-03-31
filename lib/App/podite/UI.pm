@@ -143,7 +143,7 @@ sub menu {
                 my $prompt = $arg->{prompt} || $title;
 
                 if ( $arg->{is} eq 'string' ) {
-                    push @args, prompt($prompt);
+                    push @args, prompt("$prompt> ");
                 }
                 elsif ( $arg->{is} eq 'one' ) {
                     push @args, choose_one( $prompt, to_array( $arg->{list} ) );

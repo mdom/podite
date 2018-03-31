@@ -130,8 +130,8 @@ sub run {
                             title => 'add feed',
                             args  => [
                                 {
-                                    prompt => 'url for new feed> ',
-                                    is     => 'string'
+                                    prompt => 'url for new feed',
+                                    is     => 'string',
                                 }
                             ],
                             action => sub {
@@ -161,7 +161,7 @@ sub run {
                                     prompt => 'change feed',
                                 },
                                 {
-                                    prompt => 'new url for feed> ',
+                                    prompt => 'new url for feed',
                                     is     => 'string',
                                 }
                             ],
