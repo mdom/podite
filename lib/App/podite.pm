@@ -17,7 +17,9 @@ use Scalar::Util 'refaddr';
 our $VERSION = "0.01";
 
 has ua => sub {
-    Mojo::UserAgent->new( max_redirects => 5 );
+    my $ua = Mojo::UserAgent->new( max_redirects => 5 );
+    $ua->transactor->name("podite/$VERSION (+https://github.com/mdom/podite)");
+    return $ua;
 };
 
 has share_dir => sub {
