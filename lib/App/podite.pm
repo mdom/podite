@@ -10,6 +10,7 @@ use Mojo::Util 'slugify';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
 use App::podite::UI 'menu';
+use App::podite::Util 'expand_filename';
 use App::podite::Render 'render_item';
 use File::stat;
 use Scalar::Util 'refaddr';
@@ -41,7 +42,7 @@ has feedr => sub {
 has config => sub {
     my $self = shift;
     if ( !$self->state->{config} ) {
-        $self->state->{config} = { download_dir => "$ENV{HOME}/Podcasts", };
+        $self->state->{config} = { download_dir => "~/Podcasts", };
     }
     return $self->state->{config};
 };
@@ -424,9 +425,9 @@ sub output_filename {
     my $feed            = $item->feed;
     my $mt              = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
-    my $download_dir    = path( $self->config->{download_dir} );
-    my ($remote_ext)    = $remote_filename =~ /\.([^.]+)$/;
-    my $filename        = $mt->render(
+    my $download_dir = path( expand_filename( $self->config->{download_dir} ) );
+    my ($remote_ext) = $remote_filename =~ /\.([^.]+)$/;
+    my $filename     = $mt->render(
         $template,
         {
             filename     => $url->path->parts->[-1],
