@@ -93,6 +93,7 @@ sub delete_feed {
     for my $feed (@feeds) {
         delete $self->feeds->{ $feed->source };
         delete $self->state->{subscriptions}->{ $feed->source };
+        unlink $self->cache_dir->child( slugify( $feed->source ) )->to_string;
     }
     return;
 }
