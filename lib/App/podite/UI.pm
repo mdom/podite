@@ -83,7 +83,7 @@ sub choose_one {
         next if $k =~ /^\s+$/;
 
         my $thing;
-        if ( $k =~ /[0-9]+/ && $k >= 0 && $k <= @$things ) {
+        if ( $k =~ /^[0-9]+$/ && $k >= 0 && $k <= @$things ) {
             $thing = $things->[ $k - 1 ];
         }
 
