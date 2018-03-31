@@ -38,6 +38,14 @@ has feedr => sub {
     Mojo::Feed::Reader->new;
 };
 
+has config => sub {
+    my $self = shift;
+    if ( !$self->state->{config} ) {
+        $self->state->{config} = { download_dir => "$ENV{HOME}/Podcasts", };
+    }
+    return $self->state->{config};
+};
+
 has 'state_fh';
 
 has state => sub {
@@ -207,6 +215,29 @@ sub run {
                                 ],
                             ]
                         }
+                    ],
+                },
+                {
+                    title    => 'configure',
+                    commands => [
+                        {
+                            title => sub {
+                                "download directory ("
+                                  . $self->config->{download_dir} . ")";
+                            },
+                            args => [
+                                {
+                                    is     => 'string',
+                                    prompt => 'New download directory'
+                                },
+                            ],
+                            action => sub {
+                                my ($dir) = @_;
+                                if ($dir) {
+                                    $self->config->{download_dir} = $dir;
+                                }
+                            },
+                        },
                     ],
                 },
                 {
@@ -393,7 +424,7 @@ sub output_filename {
     my $feed            = $item->feed;
     my $mt              = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
-    my $download_dir    = path("$ENV{HOME}/Podcasts");
+    my $download_dir    = path( $self->config->{download_dir} );
     my ($remote_ext)    = $remote_filename =~ /\.([^.]+)$/;
     my $filename        = $mt->render(
         $template,
