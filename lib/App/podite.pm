@@ -519,13 +519,6 @@ sub read_state {
     return $json;
 }
 
-has defaults => sub {
-    {
-        download_dir    => "$ENV{HOME}/Podcasts",
-        output_filename => '<%= "$feed_name/$title.$ext" %>',
-    }
-};
-
 1;
 
 __END__
