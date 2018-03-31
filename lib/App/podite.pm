@@ -76,6 +76,18 @@ sub add_feed {
     return;
 }
 
+sub change_feed_url {
+    my ( $self, $feed, $new_url ) = @_;
+    if ( $feed && $new_url ) {
+        $self->feeds->{$new_url} = delete $self->feeds->{ $feed->source };
+        $self->state->{subscriptions}->{$new_url} =
+          delete $self->state->{subscriptions}->{ $feed->source };
+        $self->cache_dir->child( slugify( $feed->source ) )
+          ->move_to( $self->cache_dir->child( slugify($new_url) )->to_string );
+    }
+    return;
+}
+
 sub delete_feed {
     my ( $self, @feeds ) = @_;
     for my $feed (@feeds) {
@@ -138,6 +150,24 @@ sub run {
                                     list => sub { $self->query_feeds }
                                 }
                             ],
+                        },
+                        {
+                            title => 'change feed url',
+                            args  => [
+                                {
+                                    is     => 'one',
+                                    list   => sub { $self->query_feeds },
+                                    prompt => 'change feed',
+                                },
+                                {
+                                    prompt => 'new url for feed> ',
+                                    is     => 'string',
+                                }
+                            ],
+                            action => sub {
+                                $self->change_feed_url(@_);
+                                return 1;
+                            },
                         },
                     ],
                 },
