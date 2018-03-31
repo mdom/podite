@@ -6,11 +6,11 @@ use Mojo::URL;
 use Mojo::Template;
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::File 'path';
-use Mojo::Util 'encode', 'slugify';
-use Text::Wrap 'wrap';
+use Mojo::Util 'slugify';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
 use App::podite::UI 'menu';
+use App::podite::Render 'render_item';
 use File::stat;
 use Scalar::Util 'refaddr';
 
@@ -264,12 +264,8 @@ sub download {
         my $url = $item->id;
 
         ## TODO terminal escape
-        print "\n", encode( 'UTF-8', underline( $item->title ) );
-        my $summary = render_dom( Mojo::DOM->new( $item->content ) );
-        if ( length($summary) > 800 ) {
-            $summary = substr( $summary, 0, 800 ) . "[SNIP]\n";
-        }
-        print encode( 'UTF-8', $summary ) . "\n";
+        render_item($item);
+
         while (1) {
             print "Download this item [y,n,N,s,S,q,,?]? ";
             my $key = <STDIN>;
@@ -385,56 +381,6 @@ sub output_filename {
         $file = $download_dir->child($file);
     }
     return $file;
-}
-
-sub underline {
-    my $line      = shift;
-    my $underline = '=' x length($line);
-    return "$line\n$underline\n\n";
-}
-
-sub render_dom {
-    my $node    = shift;
-    my $content = '';
-
-    for ( $node->child_nodes->each ) {
-        $content .= render_dom($_);
-    }
-
-    if ( is_tag( $node, 'h1' ) ) {
-        return underline($content);
-    }
-    elsif ( $node->tag && $node->tag =~ /^h(\d)$/ ) {
-        return ( '#' x $1 ) . " $content\n\n";
-    }
-    elsif ( $node->type eq 'text' ) {
-        $content = $node->content;
-        $content =~ s/\.\s\.\s\./.../;
-        return '' if $content !~ /\S/;
-        return $content;
-    }
-    elsif ( is_tag( $node, 'a' ) ) {
-        my $href = $node->attr('href');
-        if ($href) {
-            return "\[$content\]\[$href\]";
-        }
-        return $content;
-    }
-    elsif ( is_tag( $node, 'location' ) ) {
-        return "$content ";
-    }
-    elsif ( is_tag( $node, 'p' ) ) {
-        return Text::Wrap::fill( '', '', $content ) . "\n\n";
-    }
-    elsif ( is_tag( $node, 'b' ) ) {
-        return "*$content*";
-    }
-    return $content;
-}
-
-sub is_tag {
-    my ( $node, $tag ) = @_;
-    return $node->type eq 'tag' && $node->tag eq $tag;
 }
 
 sub update {
