@@ -41,7 +41,7 @@ has feedr => sub {
 };
 
 has defaults => sub {
-    { download_dir => "~/Podcasts", timeout => 20 }
+    { download_dir => "~/Podcasts", timeout => 0 }
 };
 
 has config => sub {
