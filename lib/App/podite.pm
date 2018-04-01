@@ -38,10 +38,14 @@ has feedr => sub {
     Mojo::Feed::Reader->new;
 };
 
+has defaults => sub {
+    { download_dir => "~/Podcasts" }
+};
+
 has config => sub {
     my $self = shift;
     if ( !$self->state->{config} ) {
-        $self->state->{config} = { download_dir => "~/Podcasts", };
+        $self->state->{config} = {};
     }
     return $self->state->{config};
 };
@@ -53,6 +57,11 @@ has state => sub {
 };
 
 has feeds => sub { {} };
+
+sub get_config {
+    my ( $self, $key ) = @_;
+    $self->config->{$key} || $self->defaults->{$key};
+}
 
 sub DESTROY {
     my $self = shift;
@@ -232,27 +241,25 @@ sub run {
 
 sub submenu_configure {
     my $self = shift;
+    my @commands;
+    for my $key (qw(download_dir)) {
+        push @commands, {
+            title => sub { "$key (" . $self->get_config($key) . ")" },
+            args  => [
+                {
+                    is     => 'string',
+                    prompt => $key,
+                },
+            ],
+            action => sub {
+                my ($arg) = @_;
+                $self->config->{$key} = $arg;
+            },
+        };
+    }
     return {
         title    => 'configure',
-        commands => [
-            map {
-                {
-                    title => "$_ (" . $self->config->{$_} . ")",
-                    args  => [
-                        {
-                            is     => 'string',
-                            prompt => $_,
-                        },
-                    ],
-                    action => sub {
-                        my ($arg) = @_;
-                        if ($arg) {
-                            $self->config->{$_} = $arg;
-                        }
-                    },
-                }
-            } qw(download_dir)
-        ],
+        commands => \@commands,
     };
 }
 
@@ -428,7 +435,7 @@ sub output_filename {
     my $feed            = $item->feed;
     my $mt              = Mojo::Template->new( vars => 1 );
     my $remote_filename = $url->path->parts->[-1];
-    my $download_dir    = path( $self->config->{download_dir} );
+    my $download_dir    = path( $self->get_config('download_dir') );
     my ($remote_ext)    = $remote_filename =~ /\.([^.]+)$/;
     my $filename        = $mt->render(
         $template,
