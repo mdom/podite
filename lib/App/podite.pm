@@ -256,6 +256,9 @@ sub submenu_configure {
             action => sub {
                 my ($arg) = @_;
                 $self->config->{$key} = $arg;
+                if ( $key eq 'timeout' ) {
+                    $self->ua->request_timeout($arg);
+                }
             },
         };
     }
