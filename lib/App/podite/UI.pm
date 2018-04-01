@@ -139,19 +139,20 @@ sub menu {
         else {
             my @args;
             my $title = maybe_code( $command->{title} );
-            my $args  = $command->{args};
+            my $args  = maybe_code( $command->{args} );
             for my $arg ( @{ $args || [] } ) {
-                my $prompt = $arg->{prompt} || $title;
+                my $prompt = maybe_code( $arg->{prompt} ) || $title;
 
                 if ( $arg->{is} eq 'string' ) {
                     push @args, prompt("$prompt> ");
                 }
                 elsif ( $arg->{is} eq 'one' ) {
-                    push @args, choose_one( $prompt, to_array( $arg->{list} ) );
+                    push @args,
+                      choose_one( $prompt, maybe_code( $arg->{list} ) );
                 }
                 elsif ( $arg->{is} eq 'many' ) {
                     push @args,
-                      choose_many( $prompt, to_array( $arg->{list} ) );
+                      choose_many( $prompt, maybe_code( $arg->{list} ) );
                 }
             }
             last if !$command->{action}->( grep { defined } @args );
@@ -160,18 +161,9 @@ sub menu {
     return;
 }
 
-sub to_array {
-    my ($thing) = @_;
-    my $type = ref($thing);
-    return $thing if $type eq 'ARRAY';
-    return $thing->() if $type eq 'CODE';
-    return [];
-}
-
 sub maybe_code {
-    my ($thing) = @_;
-    return $thing->() if ref($thing) eq 'CODE';
-    return $thing;
+    return $_[0]->() if ref $_[0] eq 'CODE';
+    return $_[0];
 }
 
 1;
