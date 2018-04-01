@@ -235,22 +235,23 @@ sub submenu_configure {
     return {
         title    => 'configure',
         commands => [
-            {
-                title => "download directory ("
-                  . $self->config->{download_dir} . ")",
-                args => [
-                    {
-                        is     => 'string',
-                        prompt => 'New download directory'
+            map {
+                {
+                    title => "$_ (" . $self->config->{$_} . ")",
+                    args  => [
+                        {
+                            is     => 'string',
+                            prompt => $_,
+                        },
+                    ],
+                    action => sub {
+                        my ($arg) = @_;
+                        if ($arg) {
+                            $self->config->{$_} = $arg;
+                        }
                     },
-                ],
-                action => sub {
-                    my ($dir) = @_;
-                    if ($dir) {
-                        $self->config->{download_dir} = $dir;
-                    }
-                },
-            },
+                }
+            } qw(download_dir)
         ],
     };
 }
