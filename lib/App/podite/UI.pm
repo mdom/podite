@@ -108,7 +108,8 @@ sub menu {
     $menu->{error_msg} ||= sub { say "Huh ($_[0])?" };
 
     my @commands =
-      grep { $_->{commands} || $_->{action} } @{ $menu->{commands} };
+      grep { $_->{commands} || $_->{action} }
+      map { maybe_code($_) } @{ $menu->{commands} };
 
     if ( my $title = $menu->{run_on_startup} ) {
         for my $cmd (@commands) {

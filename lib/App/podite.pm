@@ -217,29 +217,7 @@ sub run {
                         }
                     ],
                 },
-                {
-                    title    => 'configure',
-                    commands => [
-                        {
-                            title => sub {
-                                "download directory ("
-                                  . $self->config->{download_dir} . ")";
-                            },
-                            args => [
-                                {
-                                    is     => 'string',
-                                    prompt => 'New download directory'
-                                },
-                            ],
-                            action => sub {
-                                my ($dir) = @_;
-                                if ($dir) {
-                                    $self->config->{download_dir} = $dir;
-                                }
-                            },
-                        },
-                    ],
-                },
+                sub { $self->submenu_configure },
                 {
                     title  => 'quit',
                     action => sub { 0 },
@@ -250,6 +228,31 @@ sub run {
 
     say "Bye.";
     exit 0;
+}
+
+sub submenu_configure {
+    my $self = shift;
+    return {
+        title    => 'configure',
+        commands => [
+            {
+                title => "download directory ("
+                  . $self->config->{download_dir} . ")",
+                args => [
+                    {
+                        is     => 'string',
+                        prompt => 'New download directory'
+                    },
+                ],
+                action => sub {
+                    my ($dir) = @_;
+                    if ($dir) {
+                        $self->config->{download_dir} = $dir;
+                    }
+                },
+            },
+        ],
+    };
 }
 
 sub item_is_new {
