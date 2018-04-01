@@ -1,8 +1,9 @@
 package App::podite::Util;
 use Mojo::Base -strict;
 use Exporter 'import';
+use Mojo::File ();
 
-our @EXPORT_OK = ('expand_filename');
+our @EXPORT_OK = ( 'expand_filename', 'path' );
 
 sub expand_filename {
     my $file = shift;
@@ -12,6 +13,10 @@ sub expand_filename {
 	         : ( $ENV{HOME} || (getpwuid($<))[7] )
 	       }ex;
     return $file;
+}
+
+sub path {
+    Mojo::File::path( expand_filename(shift) );
 }
 
 1;
