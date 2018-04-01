@@ -112,7 +112,7 @@ sub menu {
 
     if ( my $title = $menu->{run_on_startup} ) {
         for my $cmd (@commands) {
-            if ( to_string( $cmd->{title} ) eq $title && $cmd->{action} ) {
+            if ( maybe_code( $cmd->{title} ) eq $title && $cmd->{action} ) {
                 $cmd->{action}->();
                 last;
             }
@@ -123,7 +123,7 @@ sub menu {
         say "*** Commands ***";
 
         my $command = choose_one( $menu->{prompt_msg},
-            [ map { [ to_string( $_->{title} ), $_ ] } @commands ] );
+            [ map { [ maybe_code( $_->{title} ), $_ ] } @commands ] );
 
         return if !defined $command;
 
@@ -137,7 +137,7 @@ sub menu {
         }
         else {
             my @args;
-            my $title = to_string( $command->{title} );
+            my $title = maybe_code( $command->{title} );
             my $args  = $command->{args};
             for my $arg ( @{ $args || [] } ) {
                 my $prompt = $arg->{prompt} || $title;
@@ -167,7 +167,7 @@ sub to_array {
     return [];
 }
 
-sub to_string {
+sub maybe_code {
     my ($thing) = @_;
     return $thing->() if ref($thing) eq 'CODE';
     return $thing;
