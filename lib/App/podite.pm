@@ -17,8 +17,10 @@ use Scalar::Util 'refaddr';
 our $VERSION = "0.01";
 
 has ua => sub {
+    my $self = shift;
     my $ua = Mojo::UserAgent->new( max_redirects => 5 );
     $ua->transactor->name("podite/$VERSION (+https://github.com/mdom/podite)");
+    $ua->request_timeout( $self->get_config('timeout') );
     return $ua;
 };
 
@@ -39,7 +41,7 @@ has feedr => sub {
 };
 
 has defaults => sub {
-    { download_dir => "~/Podcasts" }
+    { download_dir => "~/Podcasts", timeout => 20 }
 };
 
 has config => sub {
@@ -242,7 +244,7 @@ sub run {
 sub submenu_configure {
     my $self = shift;
     my @commands;
-    for my $key (qw(download_dir)) {
+    for my $key (qw(download_dir timeout)) {
         push @commands, {
             title => sub { "$key (" . $self->get_config($key) . ")" },
             args  => [
