@@ -30,8 +30,8 @@ overwview. For every feed it will print its new items, skipped items and
 the total number of items. You can always update your feeds again by using
 the main menu action _update_ or print your feed stats with _status_.
 
-In general, when the prompt ends with a single __>, you can pick only one
-of the choices given. When the prompt ends with double __>>, you can make
+In general, when the prompt ends with a single >, you can pick only one
+of the choices given. When the prompt ends with double >, you can make
 more than one selection, either seperated with spaces or commas. You
 can also use ranges. E.g. "2-5 7,9" to choose 2,3,4,5,7,9 from the
 list. If the second number in a range is omitted, all remaining choices
