@@ -107,20 +107,14 @@ sub menu {
     $menu->{prompt_msg} ||= 'What now';
     $menu->{error_msg} ||= sub { say "Huh ($_[0])?" };
 
-    my @commands =
-      grep { $_->{commands} || $_->{action} }
-      map { maybe_code($_) } @{ $menu->{commands} };
-
-    if ( my $title = $menu->{run_on_startup} ) {
-        for my $cmd (@commands) {
-            if ( maybe_code( $cmd->{title} ) eq $title && $cmd->{action} ) {
-                $cmd->{action}->();
-                last;
-            }
-        }
-    }
+    $menu->{run_on_startup}->() if $menu->{run_on_startup};
 
     while (1) {
+
+        my @commands =
+          grep { $_->{commands} || $_->{action} }
+          map { maybe_code($_) } @{ $menu->{commands} };
+
         say "*** Commands ***";
 
         my $command = choose_one( $menu->{prompt_msg},

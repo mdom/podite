@@ -140,7 +140,7 @@ sub run {
 
     menu(
         {
-            run_on_startup => 'status',
+            run_on_startup => sub { $self->status },
             commands       => [
                 {
                     title    => 'manage feeds',
