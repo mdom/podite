@@ -20,7 +20,6 @@ has ua => sub {
     my $self = shift;
     my $ua = Mojo::UserAgent->new( max_redirects => 5 );
     $ua->transactor->name("podite/$VERSION (+https://github.com/mdom/podite)");
-    $ua->request_timeout( $self->get_config('timeout') );
     return $ua;
 };
 
@@ -41,7 +40,7 @@ has feedr => sub {
 };
 
 has defaults => sub {
-    { download_dir => "~/Podcasts", timeout => 0 }
+    { download_dir => "~/Podcasts" }
 };
 
 has config => sub {
@@ -244,7 +243,7 @@ sub run {
 sub submenu_configure {
     my $self = shift;
     my @commands;
-    for my $key (qw(download_dir timeout)) {
+    for my $key (qw(download_dir)) {
         push @commands, {
             title => sub { "$key (" . $self->get_config($key) . ")" },
             args  => [
@@ -256,9 +255,6 @@ sub submenu_configure {
             action => sub {
                 my ($arg) = @_;
                 $self->config->{$key} = $arg;
-                if ( $key eq 'timeout' ) {
-                    $self->ua->request_timeout($arg);
-                }
             },
         };
     }
