@@ -345,7 +345,7 @@ sub download {
         render_item($item);
 
         while (1) {
-            print "Download this item [y,n,N,s,S,q,,?]? ";
+            print "Download this item [y,n,N,s,S,RET,q,?]? ";
             my $key = <STDIN>;
             chomp($key);
             if ( $key eq 'y' ) {
@@ -373,13 +373,17 @@ sub download {
                 $self->item_state( $item => 'skipped' );
                 next Item;
             }
+            elsif ( $key eq '' ) {
+                next Item;
+            }
             else {
-                print "y - download this item\n"
-                  . "n - do not download this item, never ask again\n"
-                  . "N - do not download this item or any of the remaining ones\n"
-                  . "s - skip this item, ask next time\n"
-                  . "S - skip this feed, ask next time\n"
-                  . "q - quit, do not download this item or any other\n";
+                print "y   - download this item\n"
+                  . "n   - do not download this item, never ask again\n"
+                  . "N   - do not download this item or any of the remaining ones\n"
+                  . "s   - skip this item, ask next time\n"
+                  . "S   - skip this feed, ask next time\n"
+                  . "RET - next item without changing state of this item\n"
+                  . "q   - quit, do not download this item or any other\n";
                 next;
             }
         }
