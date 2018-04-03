@@ -41,7 +41,10 @@ has feedr => sub {
 };
 
 has defaults => sub {
-    { download_dir => "~/Podcasts" }
+    {
+        download_dir    => "~/Podcasts",
+        output_template => '<%= "$feed_title/$title.$ext" %>'
+    }
 };
 
 has directory => sub {
@@ -351,7 +354,7 @@ sub submenu_manage_feeds {
 sub submenu_configure {
     my $self = shift;
     my @commands;
-    for my $key (qw(download_dir)) {
+    for my $key ( keys %{ $self->defaults } ) {
         push @commands, {
             title => sub { "$key (" . $self->get_config($key) . ")" },
             args  => [
@@ -362,6 +365,7 @@ sub submenu_configure {
             ],
             action => sub {
                 my ($arg) = @_;
+                ## TODO Check if output_filename compiles and give the user an example
                 $self->config->{$key} = $arg;
             },
         };
@@ -543,7 +547,7 @@ sub item_state {
 
 sub output_filename {
     my ( $self, $item, $url ) = @_;
-    my $template = '<%= "$feed_title/$title.$ext" %>';
+    my $template = $self->get_config('output_template');
 
     my $feed            = $item->feed;
     my $mt              = Mojo::Template->new( vars => 1 );
