@@ -3,7 +3,7 @@ use Mojo::Base -strict;
 use Exporter 'import';
 use Carp ();
 
-our @EXPORT_OK = ( 'menu', 'expand_list' );
+our @EXPORT_OK = ( 'menu', 'expand_list', 'choose_many' );
 
 sub prompt {
     my ($msg) = @_;

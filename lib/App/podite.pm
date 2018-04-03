@@ -8,9 +8,10 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Util 'slugify';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
-use App::podite::UI 'menu';
+use App::podite::UI 'menu', 'choose_many';
 use App::podite::Util 'path';
 use App::podite::Render 'render_item';
+use App::podite::Directory;
 use File::stat;
 use Scalar::Util 'refaddr';
 
@@ -41,6 +42,10 @@ has feedr => sub {
 
 has defaults => sub {
     { download_dir => "~/Podcasts" }
+};
+
+has directory => sub {
+    App::podite::Directory->new;
 };
 
 has config => sub {
@@ -222,99 +227,124 @@ sub is_active {
 
 sub submenu_manage_feeds {
     my ($self) = @_;
-    my $commands = sub {
-        my @commands = (
-            {
-                title => 'add feed',
-                args  => [
-                    {
-                        prompt => 'url for new feed',
-                        is     => 'string',
-                    }
-                ],
-                action => sub {
-                    $self->add_feed(@_);
-                    return 1;
-                },
-            },
-            {
-                title  => 'delete feed',
-                action => sub {
-                    $self->delete_feed(@_);
-                    return 1;
-                },
-                args => [
-                    {
-                        is   => 'many',
-                        list => sub { $self->query_feeds }
-                    }
-                ],
-            },
-            {
-                title => 'change feed url',
-                args  => [
-                    {
-                        is     => 'one',
-                        list   => sub { $self->query_feeds },
-                        prompt => 'change feed',
-                    },
-                    {
-                        prompt => 'new url for feed',
-                        is     => 'string',
-                    }
-                ],
-                action => sub {
-                    $self->change_feed_url(@_);
-                    return 1;
-                },
-            },
-        );
-
-        my @feeds    = values %{ $self->feeds };
-        my $active   = grep { $self->is_active($_) } @feeds;
-        my $inactive = @feeds - $active;
-
-        if ($active) {
-            push @commands, {
-                title => 'deactivate feed',
-                args  => [
-                    {
-                        is   => 'many',
-                        list => sub { $self->query_feeds }
-                    }
-                ],
-                action => sub {
-                    $self->deactivate_feed(@_);
-                    return 1;
-                },
-            };
-        }
-
-        if ($inactive) {
-            push @commands, {
-                title => 'activate feed',
-                args  => [
-                    {
-                        is   => 'many',
-                        list => sub {
-                            $self->query_feeds(
-                                sub { !$self->is_active( $_[0] ) } );
+    my @commands = (
+        {
+            title    => 'add feed',
+            commands => [
+                {
+                    title => 'add feed with url',
+                    args  => [
+                        {
+                            prompt => 'url for new feed',
+                            is     => 'string',
                         }
-                    }
-                ],
-                action => sub {
-                    $self->activate_feed(@_);
-                    return 1;
+                    ],
+                    action => sub {
+                        $self->add_feed(@_);
+                        return 1;
+                    },
                 },
-            };
-        }
+                {
+                    title => 'add feed by searching directory',
+                    args  => [
+                        {
+                            prompt => 'search term',
+                            is     => 'string',
+                        }
+                    ],
+                    action => sub {
+                        my ($term) = @_;
+                        return 1 if !$term;
+                        my $results = [
+                            map {
+                                [
+                                    $_->{title} . "(" . $_->{website} . ")",
+                                    $_->{url}
+                                ]
+                            } @{ $self->directory->search($term) }
+                        ];
+                        my $selected = choose_many( $term => $results );
+                        $self->add_feed(@$selected) if $selected;
+                        return 1;
+                    },
+                },
+            ]
+        },
+        {
+            title  => 'delete feed',
+            action => sub {
+                $self->delete_feed(@_);
+                return 1;
+            },
+            args => [
+                {
+                    is   => 'many',
+                    list => sub { $self->query_feeds }
+                }
+            ],
+        },
+        {
+            title => 'change feed url',
+            args  => [
+                {
+                    is     => 'one',
+                    list   => sub { $self->query_feeds },
+                    prompt => 'change feed',
+                },
+                {
+                    prompt => 'new url for feed',
+                    is     => 'string',
+                }
+            ],
+            action => sub {
+                $self->change_feed_url(@_);
+                return 1;
+            },
+        },
+    );
 
-        return \@commands;
+    my @feeds    = values %{ $self->feeds };
+    my $active   = grep { $self->is_active($_) } @feeds;
+    my $inactive = @feeds - $active;
 
-    };
+    if ($active) {
+        push @commands, {
+            title => 'deactivate feed',
+            args  => [
+                {
+                    is   => 'many',
+                    list => sub { $self->query_feeds }
+                }
+            ],
+            action => sub {
+                $self->deactivate_feed(@_);
+                return 1;
+            },
+        };
+    }
+
+    if ($inactive) {
+        push @commands, {
+            title => 'activate feed',
+            args  => [
+                {
+                    is   => 'many',
+                    list => sub {
+                        $self->query_feeds( sub { !$self->is_active( $_[0] ) }
+                        );
+                    }
+                }
+            ],
+            action => sub {
+                $self->activate_feed(@_);
+                return 1;
+            },
+        };
+    }
+
     return {
         title    => 'manage feeds',
-        commands => $commands,
+        commands => \@commands
     };
 }
 
