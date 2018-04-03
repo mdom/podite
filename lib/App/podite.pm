@@ -135,7 +135,6 @@ sub deactivate_feed {
     for my $feed (@$feeds) {
         my $url = $feed->source;
         $self->state->{subscriptions}->{$url}->{inactive} = 1;
-        delete $self->feeds->{ $feed->source };
     }
     return;
 }
@@ -165,85 +164,7 @@ sub run {
         {
             run_on_startup => sub { $self->status },
             commands       => [
-                {
-                    title    => 'manage feeds',
-                    commands => [
-                        {
-                            title => 'add feed',
-                            args  => [
-                                {
-                                    prompt => 'url for new feed',
-                                    is     => 'string',
-                                }
-                            ],
-                            action => sub {
-                                $self->add_feed(@_);
-                                return 1;
-                            },
-                        },
-                        {
-                            title  => 'delete feed',
-                            action => sub {
-                                $self->delete_feed(@_);
-                                return 1;
-                            },
-                            args => [
-                                {
-                                    is   => 'many',
-                                    list => sub { $self->query_feeds }
-                                }
-                            ],
-                        },
-                        {
-                            title => 'change feed url',
-                            args  => [
-                                {
-                                    is     => 'one',
-                                    list   => sub { $self->query_feeds },
-                                    prompt => 'change feed',
-                                },
-                                {
-                                    prompt => 'new url for feed',
-                                    is     => 'string',
-                                }
-                            ],
-                            action => sub {
-                                $self->change_feed_url(@_);
-                                return 1;
-                            },
-                        },
-                        {
-                            title => 'deactivate feed',
-                            args  => [
-                                {
-                                    is   => 'many',
-                                    list => sub { $self->query_feeds }
-                                }
-                            ],
-                            action => sub {
-                                $self->deactivate_feed(@_);
-                                return 1;
-                            },
-                        },
-                        {
-                            title => 'activate feed',
-                            args  => [
-                                {
-                                    is   => 'many',
-                                    list => sub {
-                                        $self->query_feeds(
-                                            sub { !$self->is_active( $_[0] ) }
-                                        );
-                                    }
-                                }
-                            ],
-                            action => sub {
-                                $self->activate_feed(@_);
-                                return 1;
-                            },
-                        },
-                    ],
-                },
+                sub { $self->submenu_manage_feeds },
                 {
                     title  => 'status',
                     action => sub { $self->status; return 1; },
@@ -297,6 +218,104 @@ sub run {
 sub is_active {
     my ( $self, $feed ) = @_;
     !$self->state->{subscriptions}->{ $feed->source }->{inactive};
+}
+
+sub submenu_manage_feeds {
+    my ($self) = @_;
+    my $commands = sub {
+        my @commands = (
+            {
+                title => 'add feed',
+                args  => [
+                    {
+                        prompt => 'url for new feed',
+                        is     => 'string',
+                    }
+                ],
+                action => sub {
+                    $self->add_feed(@_);
+                    return 1;
+                },
+            },
+            {
+                title  => 'delete feed',
+                action => sub {
+                    $self->delete_feed(@_);
+                    return 1;
+                },
+                args => [
+                    {
+                        is   => 'many',
+                        list => sub { $self->query_feeds }
+                    }
+                ],
+            },
+            {
+                title => 'change feed url',
+                args  => [
+                    {
+                        is     => 'one',
+                        list   => sub { $self->query_feeds },
+                        prompt => 'change feed',
+                    },
+                    {
+                        prompt => 'new url for feed',
+                        is     => 'string',
+                    }
+                ],
+                action => sub {
+                    $self->change_feed_url(@_);
+                    return 1;
+                },
+            },
+        );
+
+        my @feeds    = values %{ $self->feeds };
+        my $active   = grep { $self->is_active($_) } @feeds;
+        my $inactive = @feeds - $active;
+
+        if ($active) {
+            push @commands, {
+                title => 'deactivate feed',
+                args  => [
+                    {
+                        is   => 'many',
+                        list => sub { $self->query_feeds }
+                    }
+                ],
+                action => sub {
+                    $self->deactivate_feed(@_);
+                    return 1;
+                },
+            };
+        }
+
+        if ($inactive) {
+            push @commands, {
+                title => 'activate feed',
+                args  => [
+                    {
+                        is   => 'many',
+                        list => sub {
+                            $self->query_feeds(
+                                sub { !$self->is_active( $_[0] ) } );
+                        }
+                    }
+                ],
+                action => sub {
+                    $self->activate_feed(@_);
+                    return 1;
+                },
+            };
+        }
+
+        return \@commands;
+
+    };
+    return {
+        title    => 'manage feeds',
+        commands => $commands,
+    };
 }
 
 sub submenu_configure {

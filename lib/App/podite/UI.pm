@@ -104,20 +104,21 @@ sub choose_one {
 sub menu {
     my $menu = shift;
 
-    $menu->{prompt_msg} ||= 'What now';
     $menu->{error_msg} ||= sub { say "Huh ($_[0])?" };
 
     $menu->{run_on_startup}->() if $menu->{run_on_startup};
 
     while (1) {
 
+        my $prompt = maybe_code( $menu->{prompt_msg} ) || 'What now';
+
         my @commands =
           grep { $_->{commands} || $_->{action} }
-          map { maybe_code($_) } @{ $menu->{commands} };
+          map { maybe_code($_) } @{ maybe_code( $menu->{commands} ) };
 
         say "*** Commands ***";
 
-        my $command = choose_one( $menu->{prompt_msg},
+        my $command = choose_one( $prompt,
             [ map { [ maybe_code( $_->{title} ), $_ ] } @commands ] );
 
         return if !defined $command;
