@@ -65,13 +65,24 @@ This action will prompt you for an url of an RSS feed and download it.
 =item delete feed
 
 Delete one of your feeds. Prompts for a list of subscribed feeds. By
-deleteting a feed you'll loose any data for it, for example the list of
-downloaded, skipped or ignored feed entries.
+deleteting a feed you'll loose any data for it, for example the list
+of downloaded, skipped or ignored feed entries. If you just want to
+temporarily disable a feed use I<deactivate feed>.
 
 =item change feed url
 
 Change the url of a feed. Prompts for one feed and the new url you want to
 subscribe this feed under.
+
+=item deactivate feed
+
+Prompts for a list of feeds to deactivate them. All state is preserved. This
+menu is hidden if there are not active feeds.
+
+=item activate feed
+
+Prompts for a list of feeds to reactivate them. This menu is hidden if there
+are no deactivated feeds.
 
 =back
 

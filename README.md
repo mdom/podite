@@ -51,13 +51,24 @@ to choose everything.
     - delete feed
 
         Delete one of your feeds. Prompts for a list of subscribed feeds. By
-        deleteting a feed you'll loose any data for it, for example the list of
-        downloaded, skipped or ignored feed entries.
+        deleteting a feed you'll loose any data for it, for example the list
+        of downloaded, skipped or ignored feed entries. If you just want to
+        temporarily disable a feed use _deactivate feed_.
 
     - change feed url
 
         Change the url of a feed. Prompts for one feed and the new url you want to
         subscribe this feed under.
+
+    - deactivate feed
+
+        Prompts for a list of feeds to deactivate them. All state is preserved. This
+        menu is hidden if there are not active feeds.
+
+    - activate feed
+
+        Prompts for a list of feeds to reactivate them. This menu is hidden if there
+        are no deactivated feeds.
 
 # COPYRIGHT AND LICENSE
 
