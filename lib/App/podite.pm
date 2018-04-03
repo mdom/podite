@@ -32,7 +32,7 @@ has state_file => sub {
 };
 
 has cache_dir => sub {
-    path("$ENV{HOME}/.cache/podite/");
+    shift->share_dir->child('cache');
 };
 
 has feedr => sub {
@@ -72,8 +72,12 @@ sub DESTROY {
 }
 
 sub query_feeds {
-    my ($self) = @_;
-    my $query = [ map { [ $_->title => $_ ] } $self->sort_feeds('title') ];
+    my ( $self, $filter ) = @_;
+    $filter ||= sub { $self->is_active( $_[0] ) };
+    my $query = [
+        map { [ $_->title => $_ ] }
+        grep { $filter->($_) } $self->sort_feeds('title')
+    ];
     return $query;
 }
 
@@ -112,6 +116,26 @@ sub delete_feed {
         delete $self->feeds->{ $feed->source };
         delete $self->state->{subscriptions}->{ $feed->source };
         unlink $self->cache_dir->child( slugify( $feed->source ) )->to_string;
+    }
+    return;
+}
+
+sub activate_feed {
+    my ( $self, $feeds ) = @_;
+    for my $feed (@$feeds) {
+        my $url = $feed->source;
+        $self->state->{subscriptions}->{$url}->{inactive} = 0;
+        $self->update($url);
+    }
+    return;
+}
+
+sub deactivate_feed {
+    my ( $self, $feeds ) = @_;
+    for my $feed (@$feeds) {
+        my $url = $feed->source;
+        $self->state->{subscriptions}->{$url}->{inactive} = 1;
+        delete $self->feeds->{ $feed->source };
     }
     return;
 }
@@ -188,6 +212,36 @@ sub run {
                                 return 1;
                             },
                         },
+                        {
+                            title => 'deactivate feed',
+                            args  => [
+                                {
+                                    is   => 'many',
+                                    list => sub { $self->query_feeds }
+                                }
+                            ],
+                            action => sub {
+                                $self->deactivate_feed(@_);
+                                return 1;
+                            },
+                        },
+                        {
+                            title => 'activate feed',
+                            args  => [
+                                {
+                                    is   => 'many',
+                                    list => sub {
+                                        $self->query_feeds(
+                                            sub { !$self->is_active( $_[0] ) }
+                                        );
+                                    }
+                                }
+                            ],
+                            action => sub {
+                                $self->activate_feed(@_);
+                                return 1;
+                            },
+                        },
                     ],
                 },
                 {
@@ -240,6 +294,11 @@ sub run {
     exit 0;
 }
 
+sub is_active {
+    my ( $self, $feed ) = @_;
+    !$self->state->{subscriptions}->{ $feed->source }->{inactive};
+}
+
 sub submenu_configure {
     my $self = shift;
     my @commands;
@@ -288,7 +347,7 @@ sub status {
     my ($self) = @_;
     my @rows;
     my @spec;
-    my @feeds = $self->sort_feeds('title');
+    my @feeds = grep { $self->is_active($_) } $self->sort_feeds('title');
     for my $feed (@feeds) {
         my @items = $feed->items->each;
         my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
@@ -461,6 +520,23 @@ sub output_filename {
     return $file;
 }
 
+sub cache_feed {
+    my ( $self, $url, $feed ) = @_;
+    if ($feed) {
+        $feed->source( Mojo::URL->new($url) );
+        $self->feeds->{$url} = $feed;
+    }
+    return;
+}
+
+sub read_cached_feed {
+    my ( $self, $url, $cache_file ) = @_;
+    if ( -r $cache_file ) {
+        $self->cache_feed( $url => $self->feedr->parse($cache_file) );
+    }
+    return;
+}
+
 sub update {
     my ( $self, @urls ) = @_;
     if ( !@urls ) {
@@ -470,7 +546,13 @@ sub update {
     my %feeds;
   Feed:
     for my $url (@urls) {
+
         my $cache_file = $self->cache_dir->child( slugify($url) );
+
+        if ( $self->state->{subscriptions}->{$url}->{inactive} ) {
+            $self->read_cached_feed( $url => $cache_file );
+            next;
+        }
 
         my $tx = $self->ua->build_tx( GET => $url );
         if ( -e $cache_file ) {
@@ -490,16 +572,10 @@ sub update {
                           or die "Can't open cache file $cache_file: $!\n";
                         my $body = $res->body;
                         print $fh $body;
-                        $feed = $self->feedr->parse($body);
+                        $self->cache_feed( $url => $self->feedr->parse($body) );
                     }
                     elsif ( $res->code eq 304 ) {
-                        if ( -r $cache_file ) {
-                            $feed = $self->feedr->parse($cache_file);
-                        }
-                    }
-                    if ($feed) {
-                        $feed->source( Mojo::URL->new($url) );
-                        $self->feeds->{$url} = $feed;
+                        $self->read_cached_feed( $url => $cache_file );
                     }
                 }
                 else {
