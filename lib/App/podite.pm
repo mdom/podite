@@ -568,13 +568,14 @@ sub update {
         @urls = keys %{ $self->state->{subscriptions} };
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-    my %feeds;
   Feed:
     for my $url (@urls) {
 
         my $cache_file = $self->cache_dir->child( slugify($url) );
 
-        if ( $self->state->{subscriptions}->{$url}->{inactive} ) {
+        if ( exists $self->state->{subscriptions}->{$url}
+            && $self->state->{subscriptions}->{$url}->{inactive} )
+        {
             $self->read_cached_feed( $url => $cache_file );
             next;
         }
@@ -589,14 +590,21 @@ sub update {
         $q->add(
             $tx => sub {
                 my ( $ua, $tx ) = @_;
-                my $res = eval { $tx->success };
                 if ( my $res = $tx->success ) {
-                    my $feed;
                     if ( $res->code eq 200 ) {
+                        my $body = $res->body;
+                        my $feed = $self->feedr->parse($body);
+                        if ( $feed->dom->children->first->tag !~
+                            /^(feed|rss|rdf|rdf:rdf)$/i )
+                        {
+                            warn "Can't parse $url as feed.\n";
+                            return;
+                        }
+
                         open( my $fh, '>', $cache_file )
                           or die "Can't open cache file $cache_file: $!\n";
-                        my $body = $res->body;
                         print $fh $body;
+
                         $self->cache_feed( $url => $self->feedr->parse($body) );
                     }
                     elsif ( $res->code eq 304 ) {
@@ -612,8 +620,7 @@ sub update {
             }
         );
     }
-    $q->wait;
-    return %feeds;
+    return $q->wait;
 }
 
 sub write_state {
