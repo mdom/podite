@@ -131,7 +131,7 @@ sub menu {
         last if !defined $command;
 
         if ( !$command ) {
-            warn $menu->{error_msg};
+            warn $menu->{error_msg}, "\n";
             next;
         }
 
