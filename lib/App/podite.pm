@@ -208,6 +208,7 @@ sub run {
                         );
                         return 1 if !$filter;
                         $self->download( $feeds, $filter );
+                        return 1;
                     },
                 },
                 sub { $self->submenu_configure },
@@ -269,7 +270,7 @@ sub submenu_manage_feeds {
             action => sub {
                 my $feeds =
                   choose_many( 'which feeds' => sub { $self->query_feeds } );
-                return 1 if !$feeds || !@$feeds;
+                return 1 if !$feeds;
                 $self->delete_feed(@_);
                 return 1;
             },
@@ -279,7 +280,7 @@ sub submenu_manage_feeds {
             action => sub {
                 my $feed =
                   choose_one( 'change feed', sub { $self->query_feeds } );
-                return 1 if !$feed || !@$feed;
+                return 1 if !$feed;
 
                 my $new_url = prompt('new url for feed');
                 return 1 if !$new_url;
@@ -300,7 +301,7 @@ sub submenu_manage_feeds {
             action => sub {
                 my $feed =
                   choose_many( 'change feed', sub { $self->query_feeds } );
-                return 1 if !$feed || !@$feed;
+                return 1 if !$feed;
                 $self->deactivate_feed($feed);
                 return 1;
             },
@@ -318,7 +319,7 @@ sub submenu_manage_feeds {
                         );
                     }
                 );
-                return 1 if !$feed || !@$feed;
+                return 1 if !$feed;
                 $self->activate_feed($feed);
                 return 1;
             },
@@ -487,8 +488,7 @@ sub download {
             }
         );
     }
-    $q->wait;
-    return 1;
+    return $q->wait;
 }
 
 sub skip_feed {
