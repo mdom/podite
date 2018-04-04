@@ -123,7 +123,7 @@ sub menu {
         my $command = choose_one( $prompt,
             [ map { [ maybe_code( $_->{title} ), $_ ] } @commands ] );
 
-        return if !defined $command;
+        last if !defined $command;
 
         if ( !$command ) {
             warn $menu->{error_msg};
