@@ -134,7 +134,6 @@ sub menu {
             menu($command);
         }
         else {
-            my $title = maybe_code( $command->{title} );
             last if !$command->{action}->();
         }
     }
