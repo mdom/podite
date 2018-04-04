@@ -106,7 +106,7 @@ sub choose_one {
 sub menu {
     my $menu = shift;
 
-    $menu->{error_msg} ||= sub { say "Huh ($_[0])?" };
+    $menu->{error_msg} ||= 'Huh?';
 
     $menu->{run_on_startup}->() if $menu->{run_on_startup};
 
@@ -126,7 +126,7 @@ sub menu {
         return if !defined $command;
 
         if ( !$command ) {
-            $menu->{error_msg}->("");
+            warn $menu->{error_msg};
             next;
         }
 
