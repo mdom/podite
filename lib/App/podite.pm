@@ -594,7 +594,7 @@ sub update {
                     if ( $res->code eq 200 ) {
                         my $body = $res->body;
                         my $feed = $self->feedr->parse($body);
-                        if ($feed) {
+                        if ( !$feed ) {
                             warn "Can't parse $url as feed.\n";
                             return;
                         }
