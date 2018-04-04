@@ -8,7 +8,7 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Util 'slugify';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
-use App::podite::UI 'menu', 'choose_many';
+use App::podite::UI qw(menu choose_one choose_many prompt);
 use App::podite::Util 'path';
 use App::podite::Render 'render_item';
 use App::podite::Directory;
@@ -185,16 +185,10 @@ sub run {
                 {
                     title  => 'download',
                     action => sub {
-                        $self->download(@_);
-                    },
-                    args => [
-                        {
-                            is   => 'many',
-                            list => sub { $self->query_feeds },
-                        },
-                        {
-                            is   => 'one',
-                            list => [
+                        my $feeds = choose_many(
+                            'filter by feed' => sub { $self->query_feeds } );
+                        my $filter = choose_one(
+                            'filter by state' => [
                                 [ all => sub { 1 } ],
                                 [
                                     new => sub {
@@ -208,8 +202,10 @@ sub run {
                                     }
                                 ],
                             ]
-                        }
-                    ],
+                        );
+                        return 1 if !$feeds || !@$feeds || !$filter;
+                        $self->download( $feeds, $filter );
+                    },
                 },
                 sub { $self->submenu_configure },
                 {
@@ -236,29 +232,20 @@ sub submenu_manage_feeds {
             title    => 'add feed',
             commands => [
                 {
-                    title => 'add feed with url',
-                    args  => [
-                        {
-                            prompt => 'url for new feed',
-                            is     => 'string',
-                        }
-                    ],
+                    title  => 'add feed with url',
                     action => sub {
-                        $self->add_feed(@_);
+                        my $url = prompt('url for new feed');
+                        return 1 if !$url;
+                        $self->add_feed($url);
                         return 1;
                     },
                 },
                 {
-                    title => 'add feed by searching directory',
-                    args  => [
-                        {
-                            prompt => 'search term',
-                            is     => 'string',
-                        }
-                    ],
+                    title  => 'add feed by searching directory',
                     action => sub {
-                        my ($term) = @_;
+                        my $term = prompt('search term');
                         return 1 if !$term;
+
                         my $results = [
                             map {
                                 [
@@ -277,31 +264,24 @@ sub submenu_manage_feeds {
         {
             title  => 'delete feed',
             action => sub {
+                my $feeds =
+                  choose_many( 'which feeds' => sub { $self->query_feeds } );
+                return 1 if !$feeds || !@$feeds;
                 $self->delete_feed(@_);
                 return 1;
             },
-            args => [
-                {
-                    is   => 'many',
-                    list => sub { $self->query_feeds }
-                }
-            ],
         },
         {
-            title => 'change feed url',
-            args  => [
-                {
-                    is     => 'one',
-                    list   => sub { $self->query_feeds },
-                    prompt => 'change feed',
-                },
-                {
-                    prompt => 'new url for feed',
-                    is     => 'string',
-                }
-            ],
+            title  => 'change feed url',
             action => sub {
-                $self->change_feed_url(@_);
+                my $feed =
+                  choose_one( 'change feed', sub { $self->query_feeds } );
+                return 1 if !$feed || !@$feed;
+
+                my $new_url = prompt('new url for feed');
+                return 1 if !$new_url;
+
+                $self->change_feed_url( $feed, $new_url );
                 return 1;
             },
         },
@@ -313,15 +293,12 @@ sub submenu_manage_feeds {
 
     if ($active) {
         push @commands, {
-            title => 'deactivate feed',
-            args  => [
-                {
-                    is   => 'many',
-                    list => sub { $self->query_feeds }
-                }
-            ],
+            title  => 'deactivate feed',
             action => sub {
-                $self->deactivate_feed(@_);
+                my $feed =
+                  choose_many( 'change feed', sub { $self->query_feeds } );
+                return 1 if !$feed || !@$feed;
+                $self->deactivate_feed($feed);
                 return 1;
             },
         };
@@ -329,18 +306,17 @@ sub submenu_manage_feeds {
 
     if ($inactive) {
         push @commands, {
-            title => 'activate feed',
-            args  => [
-                {
-                    is   => 'many',
-                    list => sub {
+            title  => 'activate feed',
+            action => sub {
+                my $feed = choose_many(
+                    'change feed',
+                    sub {
                         $self->query_feeds( sub { !$self->is_active( $_[0] ) }
                         );
                     }
-                }
-            ],
-            action => sub {
-                $self->activate_feed(@_);
+                );
+                return 1 if !$feed || !@$feed;
+                $self->activate_feed($feed);
                 return 1;
             },
         };
@@ -357,15 +333,10 @@ sub submenu_configure {
     my @commands;
     for my $key ( keys %{ $self->defaults } ) {
         push @commands, {
-            title => sub { "$key (" . $self->get_config($key) . ")" },
-            args  => [
-                {
-                    is     => 'string',
-                    prompt => $key,
-                },
-            ],
+            title  => sub { "$key (" . $self->get_config($key) . ")" },
             action => sub {
-                my ($arg) = @_;
+                my $arg = prompt($key);
+                return if !defined $arg;
                 ## TODO Check if output_filename compiles and give the user an example
                 $self->config->{$key} = $arg;
             },

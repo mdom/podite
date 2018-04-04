@@ -3,11 +3,11 @@ use Mojo::Base -strict;
 use Exporter 'import';
 use Carp ();
 
-our @EXPORT_OK = ( 'menu', 'expand_list', 'choose_many' );
+our @EXPORT_OK = ( 'menu', 'choose_many', 'prompt', 'choose_one' );
 
 sub prompt {
     my ($msg) = @_;
-    print $msg;
+    print "$msg> ";
     my $k = <STDIN>;
     if ( !$k ) {
         print "\n";
@@ -52,9 +52,10 @@ sub expand_list {
 
 sub choose_many {
     my ( $prompt, $things ) = @_;
+    $things = maybe_code($things);
     while (1) {
         list_things($things);
-        my $k = prompt("$prompt>> ");
+        my $k = prompt("$prompt>");
 
         return if !defined $k;
         return if 'quit' =~ /^\Q$k/;
@@ -73,10 +74,11 @@ sub choose_many {
 
 sub choose_one {
     my ( $prompt, $things ) = @_;
+    $things = maybe_code($things);
     while (1) {
         list_things($things);
 
-        my $k = prompt("$prompt> ");
+        my $k = prompt($prompt);
 
         return if !defined $k;
 
@@ -132,25 +134,8 @@ sub menu {
             menu($command);
         }
         else {
-            my @args;
             my $title = maybe_code( $command->{title} );
-            my $args  = maybe_code( $command->{args} );
-            for my $arg ( @{ $args || [] } ) {
-                my $prompt = maybe_code( $arg->{prompt} ) || $title;
-
-                if ( $arg->{is} eq 'string' ) {
-                    push @args, prompt("$prompt> ");
-                }
-                elsif ( $arg->{is} eq 'one' ) {
-                    push @args,
-                      choose_one( $prompt, maybe_code( $arg->{list} ) );
-                }
-                elsif ( $arg->{is} eq 'many' ) {
-                    push @args,
-                      choose_many( $prompt, maybe_code( $arg->{list} ) );
-                }
-            }
-            last if !$command->{action}->( grep { defined } @args );
+            last if !$command->{action}->();
         }
     }
     return;

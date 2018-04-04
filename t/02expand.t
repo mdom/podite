@@ -1,6 +1,6 @@
 use Mojo::Base -strict;
 use Test::More;
-use App::podite::UI 'expand_list';
+use App::podite::UI;
 
 my @tests = (
     [ '1'         => ['1'] ],
@@ -17,7 +17,7 @@ my @tests = (
 );
 
 for my $test (@tests) {
-    is_deeply( [ expand_list( $test->[0], 10 ) ], $test->[1] );
+    is_deeply( [ App::podite::UI::expand_list( $test->[0], 10 ) ], $test->[1] );
 }
 
 done_testing;
