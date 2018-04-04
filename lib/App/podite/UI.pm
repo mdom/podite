@@ -19,10 +19,15 @@ sub prompt {
 
 sub list_things {
     my ($things) = @_;
+
+    my $size    = @$things;
+    my $padding = length($size);
+    my $fmt     = "%${padding}s. %s\n";
+
     my $idx = 1;
     for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
-        say $idx++, ". $title";
+        printf $fmt, $idx++, $title;
     }
     return;
 }
