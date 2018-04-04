@@ -17,7 +17,7 @@ the feed. Instead, it queries the users which podcasts to download.
 The easiest way to install podite is with
 [cpanminus](https://github.com/miyagawa/cpanminus):
 
-    cpanm < install.list
+    cpanm git://github.com/mdom/podite.git
 
 # USAGE
 

@@ -43,15 +43,14 @@
       },
       "runtime" : {
          "requires" : {
-            "Config::Tiny" : "0",
             "Mojo::Base" : "0",
+            "Mojo::Feed" : "0",
             "Mojo::File" : "0",
             "Mojo::IOLoop" : "0",
             "Mojo::JSON" : "0",
             "Mojo::URL" : "0",
             "Mojo::UserAgent" : "0",
             "Mojo::Util" : "0",
-            "Mojolicious::Plugin::FeedReader" : "0",
             "Text::Wrap" : "0"
          }
       }
