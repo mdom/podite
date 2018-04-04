@@ -1,3 +1,4 @@
+## Please see file perltidy.ERR
 package App::podite;
 use Mojo::Base -base;
 
@@ -187,6 +188,8 @@ sub run {
                     action => sub {
                         my $feeds = choose_many(
                             'filter by feed' => sub { $self->query_feeds } );
+                        return 1 if !$feeds || !@$feeds;
+
                         my $filter = choose_one(
                             'filter by state' => [
                                 [ all => sub { 1 } ],
@@ -203,7 +206,7 @@ sub run {
                                 ],
                             ]
                         );
-                        return 1 if !$feeds || !@$feeds || !$filter;
+                        return 1 if !$filter;
                         $self->download( $feeds, $filter );
                     },
                 },
