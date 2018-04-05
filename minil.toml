@@ -2,3 +2,6 @@ readme_from="script/podite"
 abstract_from="script/podite"
 license="gpl_3"
 authors_from="script/podite"
+
+[release]
+do_not_upload_to_cpan=true
