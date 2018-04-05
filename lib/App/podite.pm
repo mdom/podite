@@ -271,7 +271,7 @@ sub submenu_manage_feeds {
                 my $feeds =
                   choose_many( 'which feeds' => sub { $self->query_feeds } );
                 return 1 if !$feeds;
-                $self->delete_feed(@_);
+                $self->delete_feed($feeds);
                 return 1;
             },
         },
