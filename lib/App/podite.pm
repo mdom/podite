@@ -445,7 +445,7 @@ sub download {
     ## skipped until downloaded
     if ($downloads) {
         for my $item (@$downloads) {
-            $skipped{ $item->id } = 1;
+            $skipped{ $item->id } = $item;
         }
     }
 
