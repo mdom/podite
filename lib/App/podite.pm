@@ -15,7 +15,7 @@ use App::podite::Directory;
 use File::stat;
 use Scalar::Util 'refaddr';
 
-our $VERSION = "0.01";
+our $VERSION = "0.02";
 
 has ua => sub {
     my $self = shift;
