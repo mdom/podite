@@ -244,7 +244,7 @@ sub submenu_manage_feeds {
                     },
                 },
                 {
-                    title  => 'add feed by searching directory',
+                    title  => 'search and add feed',
                     action => sub {
                         my $term = prompt('search term');
                         return 1 if !$term;

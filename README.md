@@ -8,9 +8,11 @@ podite - Command line podcast aggregator
 
 # DESCRIPTION
 
-podite downloads podcasts from a set of subscribed rss and atom feeds. It
-is optimized for users that don't want to download every podcast from
-the feed. Instead, it queries the users which podcasts to download.
+podite downloads podcasts from a set of subscribed rss and atom feeds. You
+can add feeds by url or search for them on gpodder.net. Feeds can be
+deactivated if you are currently not interested in them without loosing
+the information which episode you already downloaded. Episodes can be
+hidden, so they will not clutter your screen (unless you want to!).
 
 # INSTALLATION
 
@@ -45,9 +47,14 @@ to choose everything.
     This menu is all about managing your feeds.
 
     - add feed
+        - add feed by url
 
-        This action will prompt you for an url of an RSS feed and download it.
+            This action will prompt you for an url of an RSS feed and download it.
 
+        - search and add feed
+
+            Prompts for a search term and presents you with a list of feeds found
+            on gpodder.net. You can select multiple feeds.
     - delete feed
 
         Delete one of your feeds. Prompts for a list of subscribed feeds. By
