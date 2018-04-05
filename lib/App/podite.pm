@@ -1,4 +1,3 @@
-## Please see file perltidy.ERR
 package App::podite;
 use Mojo::Base -base;
 
@@ -6,12 +5,12 @@ use Mojo::Feed::Reader;
 use Mojo::URL;
 use Mojo::Template;
 use Mojo::JSON qw(encode_json decode_json);
-use Mojo::Util 'slugify';
+use Mojo::Util 'slugify', 'encode';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
 use App::podite::UI qw(menu choose_one choose_many prompt);
 use App::podite::Util 'path';
-use App::podite::Render 'render_item';
+use App::podite::Render 'render_content';
 use App::podite::Directory;
 use File::stat;
 use Scalar::Util 'refaddr';
@@ -408,73 +407,56 @@ sub status {
     return 1;
 }
 
+sub render_item {
+    my ( $self, $item ) = @_;
+
+    my $summary = substr( render_content($item) || '', 0, 120 );
+    return encode( 'UTF-8',
+        $item->feed->title . ': ' . $item->title . "\n" . $summary )
+      . "\n";
+}
+
 sub download {
     my ( $self, $feeds, $filter ) = @_;
 
     return 1 if !$feeds;
     return 1 if !@$feeds;
-    $filter = $filter ? $filter : sub { $_[0] };
-
-    my @downloads;
+    $filter = $filter ? $filter : sub { 1 };
 
     my @items = grep { $filter->($_) }
-      sort { $b->published <=> $a->published }
+      sort { $a->published <=> $b->published }
       map  { $_->items->each } @$feeds;
 
-  Item:
-    while ( my $item = shift @items ) {
-        my $url = $item->id;
+    my $selection = [ map { [ $self->render_item($_), $_ ] } @items ];
 
-        ## TODO terminal escape
-        render_item($item);
+    my %skipped = map { $_->id => $_ } @items;
 
-        while (1) {
-            print "Download this item [y,n,N,s,S,RET,q,?]? ";
-            my $key = <STDIN>;
-            chomp($key);
-            if ( $key eq 'y' ) {
-                push @downloads, $item;
-                next Item;
-            }
-            elsif ( $key eq 'n' ) {
-                $self->item_state( $item => 'hidden' );
-                next Item;
-            }
-            elsif ( $key eq 'N' ) {
-                @items =
-                  $self->skip_feed( $item->feed, 'hidden', $item, @items );
-                next Item;
-            }
-            elsif ( $key eq 'S' ) {
-                @items =
-                  $self->skip_feed( $item->feed, 'skipped', $item, @items );
-                next Item;
-            }
-            elsif ( $key eq 'q' ) {
-                last Item;
-            }
-            elsif ( $key eq 's' ) {
-                $self->item_state( $item => 'skipped' );
-                next Item;
-            }
-            elsif ( $key eq '' ) {
-                next Item;
-            }
-            else {
-                print "y   - download this item\n"
-                  . "n   - do not download this item, never ask again\n"
-                  . "N   - do not download this item or any of the remaining ones\n"
-                  . "s   - skip this item, ask next time\n"
-                  . "S   - skip this feed, ask next time\n"
-                  . "RET - next item without changing state of this item\n"
-                  . "q   - quit, do not download this item or any other\n";
-                next;
-            }
+    my $downloads = choose_many( 'download', $selection );
+    my $hide = choose_many( 'hide', $selection, hide => 1 );
+
+    if ($hide) {
+        for my $item (@$hide) {
+            $self->item_state( $item => 'hidden' );
+            delete $skipped{ $item->id };
         }
     }
 
+    ## ensures that elements that are in $hide and $downloads remain
+    ## skipped until downloaded
+    if ($downloads) {
+        for my $item (@$downloads) {
+            $skipped{ $item->id } = 1;
+        }
+    }
+
+    for my $item ( values %skipped ) {
+        $self->item_state( $item => 'skipped' );
+    }
+
+    return if !$downloads;
+
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-    for my $item (@downloads) {
+    for my $item (@$downloads) {
         my $download_url = Mojo::URL->new( $item->enclosures->[0]->url );
         my $output_filename = $self->output_filename( $item => $download_url );
         $output_filename->dirname->make_path;

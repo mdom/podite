@@ -1,7 +1,8 @@
 package App::podite::UI;
 use Mojo::Base -strict;
 use Exporter 'import';
-use Carp ();
+use Text::Wrap ();
+use Carp       ();
 
 our @EXPORT_OK = ( 'menu', 'choose_many', 'prompt', 'choose_one' );
 
@@ -23,11 +24,12 @@ sub list_things {
     my $size    = @$things;
     my $padding = length($size);
     my $fmt     = "%${padding}s. %s\n";
+    my $prefix  = " " x ( $padding + 2 );
 
     my $idx = 1;
     for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
-        printf $fmt, $idx++, $title;
+        printf $fmt, $idx++, Text::Wrap::wrap( "", $prefix, $title );
     }
     return;
 }
