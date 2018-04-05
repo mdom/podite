@@ -2,6 +2,7 @@ package App::podite::UI;
 use Mojo::Base -strict;
 use Exporter 'import';
 use Text::Wrap ();
+use Mojo::Util 'encode';
 use Carp       ();
 
 our @EXPORT_OK = ( 'menu', 'choose_many', 'prompt', 'choose_one' );
@@ -29,7 +30,8 @@ sub list_things {
     my $idx = 1;
     for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
-        printf $fmt, $idx++, Text::Wrap::wrap( "", $prefix, $title );
+        print encode( 'UTF-8', sprintf $fmt, $idx++,
+            Text::Wrap::wrap( "", $prefix, $title ) );
     }
     return;
 }
