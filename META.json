@@ -44,7 +44,7 @@
       "runtime" : {
          "requires" : {
             "Mojo::Base" : "0",
-            "Mojo::Feed" : "0",
+            "Mojo::Feed" : "0.16",
             "Mojo::File" : "0",
             "Mojo::IOLoop" : "0",
             "Mojo::JSON" : "0",

@@ -5,7 +5,7 @@ requires 'Mojo::JSON';
 requires 'Mojo::URL';
 requires 'Mojo::UserAgent';
 requires 'Mojo::Util';
-requires 'Mojo::Feed';
+requires 'Mojo::Feed', '0.16';
 requires 'Text::Wrap';
 
 on configure => sub {
