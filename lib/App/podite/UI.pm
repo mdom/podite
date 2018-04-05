@@ -56,10 +56,12 @@ sub expand_list {
 }
 
 sub choose_many {
-    my ( $prompt, $things ) = @_;
+    my ( $prompt, $things, %options ) = @_;
     $things = maybe_code($things);
     while (1) {
-        list_things($things);
+        if ( !$options{hide} ) {
+            list_things($things);
+        }
         my $k = prompt("$prompt>");
 
         return if !defined $k;
@@ -78,10 +80,12 @@ sub choose_many {
 }
 
 sub choose_one {
-    my ( $prompt, $things ) = @_;
+    my ( $prompt, $things, %options ) = @_;
     $things = maybe_code($things);
     while (1) {
-        list_things($things);
+        if ( !$options{hide} ) {
+            list_things($things);
+        }
 
         my $k = prompt($prompt);
 
