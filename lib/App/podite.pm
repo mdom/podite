@@ -249,15 +249,21 @@ sub submenu_manage_feeds {
                         my $term = prompt('search term');
                         return 1 if !$term;
 
-                        my $results = [
+                        my $result = $self->directory->search($term);
+                        if ( !@$result ) {
+                            warn "No results.\n";
+                            return 1;
+                        }
+
+                        my $selection = [
                             map {
                                 [
                                     $_->{title} . "(" . $_->{website} . ")",
                                     $_->{url}
                                 ]
-                            } @{ $self->directory->search($term) }
+                            } @$result
                         ];
-                        my $selected = choose_many( $term => $results );
+                        my $selected = choose_many( $term => $selection );
                         $self->add_feed(@$selected) if $selected;
                         return 1;
                     },

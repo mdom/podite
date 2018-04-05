@@ -21,7 +21,6 @@ sub search {
     my ( $self, $term ) = @_;
     return {} if !$term;
     my $url = $self->base_url->path("/search.json")->query( q => $term );
-    warn "$url\n";
     return $self->ua->get($url)->result->json;
 }
 
