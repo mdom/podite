@@ -1,5 +1,9 @@
 {{$NEXT}}
 
+0.03 2018-04-05T13:42:49Z
+  - Fix output errors in status
+  - Allow adding multiple feeds from the directory search
+
 0.02 2018-04-05T13:22:39Z
   Test fatpack upload
 
