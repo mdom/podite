@@ -37,20 +37,20 @@ sub expand_list {
     my @elements = map { split(',') } split( ' ', $list );
     my @result;
     for (@elements) {
-        /^\*$/ && do {
+        if (/^\*$/) {
             return ( 1 .. $length );
-        };
-        /^(\d)-(\d)$/ && do {
+        }
+        elsif (/^(\d+)-(\d+)$/) {
             my ( $from, $to ) = ( $1, $2 );
             $to = $length if $to > $length;
             push @result, $from .. $to;
-            next;
-        };
-        /^(\d)-$/ && do {
+        }
+        elsif (/^(\d+)-$/) {
             push @result, $1 .. $length;
-            next;
-        };
-        push @result, $_;
+        }
+        elsif (/^(\d+)$/) {
+            push @result, $1 if $1 <= $length;
+        }
     }
     return @result;
 }

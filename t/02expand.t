@@ -14,10 +14,13 @@ my @tests = (
     [ '1-2'       => [qw(1 2)] ],
     [ '1-2 3 4-6' => [qw(1 2 3 4 5 6)] ],
     [ '1, 9-'     => [qw(1 9 10)] ],
+    [ '1, 19'     => ['1'] ],
+    [ '1, 19'     => [qw(1 19)] => 20 ],
 );
 
 for my $test (@tests) {
-    is_deeply( [ App::podite::UI::expand_list( $test->[0], 10 ) ], $test->[1] );
+    is_deeply( [ App::podite::UI::expand_list( $test->[0], $test->[2] || 10 ) ],
+        $test->[1] );
 }
 
 done_testing;
