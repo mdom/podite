@@ -404,7 +404,7 @@ sub status {
         push @rows, \@row;
     }
     my $fmt = '%-'
-      . length( @rows + 1 ) . 'd.   '
+      . length( scalar @rows ) . 'd.   '
       . join( ' / ', map { "\%${_}d" } @spec )
       . "   %s\n";
     for my $i ( 0 .. $#rows ) {
