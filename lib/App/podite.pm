@@ -25,7 +25,12 @@ has ua => sub {
 };
 
 has share_dir => sub {
-    path("$ENV{HOME}/.local/share/podite/");
+    my $dir =
+        $^O eq 'darwin'     ? "$ENV{HOME}/Library/Application Support"
+      : $^O eq 'MSWin32'    ? $ENV{APPDATA}
+      : $ENV{XDG_DATA_HOME} ? $ENV{XDG_DATA_HOME}
+      :                       "$ENV{HOME}/.local/share";
+    path($dir)->child('podite');
 };
 
 has state_file => sub {
