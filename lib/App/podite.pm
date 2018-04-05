@@ -403,7 +403,7 @@ sub status {
         }
         push @rows, \@row;
     }
-    my $fmt = '%-'
+    my $fmt = '%'
       . length( scalar @rows ) . 'd.   '
       . join( ' / ', map { "\%${_}d" } @spec )
       . "   %s\n";
