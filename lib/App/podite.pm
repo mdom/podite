@@ -95,8 +95,8 @@ sub items {
 }
 
 sub add_feed {
-    my ( $self, $url ) = @_;
-    if ($url) {
+    my ( $self, @urls ) = @_;
+    for my $url (@urls) {
         $url = Mojo::URL->new($url)->to_string;
         $self->update($url);
         if ( $self->feeds->{$url} && !$self->state->{subscriptions}->{$url} ) {
