@@ -32,13 +32,18 @@ overwview. For every feed it will print its new items, skipped items and
 the total number of items. You can always update your feeds again by using
 the main menu action _update_ or print your feed stats with _status_.
 
-In general, when the prompt ends with a single >, you can pick only one
-of the choices given. When the prompt ends with double >, you can make
-more than one selection, either seperated with spaces or commas. You
-can also use ranges. E.g. "2-5 7,9" to choose 2,3,4,5,7,9 from the
-list. If the second number in a range is omitted, all remaining choices
-are selected. E.g. "7-" to choose 7,8,9 from the list. You can say _\*_
-to choose everything.
+In general, when the prompt ends with a single >, you can pick
+only one of the choices given. When the prompt ends with double >,
+you can make more than one selection, either seperated with spaces or
+commas. You can also use ranges. E.g. "2-5 7,9" to choose 2,3,4,5,7,9
+from the list. If the second number in a range is omitted, all remaining
+choices are selected. E.g. "7-" to choose 7,8,9 from the list. You can
+say _\*_ to choose everything. Pressing _return_ when prompted for one
+choice will select the first choice, and choose everything when multiple
+selections are allowed.
+
+You can leave menus by pressing _CTRL-D_. This will also abort an action
+when prompted for arguments.
 
 ## MENUS
 
@@ -57,14 +62,14 @@ to choose everything.
             on gpodder.net. You can select multiple feeds.
     - delete feed
 
-        Delete one of your feeds. Prompts for a list of subscribed feeds. By
+        Deletes one of your feeds. Prompts for a list of subscribed feeds. By
         deleteting a feed you'll loose any data for it, for example the list
         of downloaded, skipped or ignored feed entries. If you just want to
         temporarily disable a feed use _deactivate feed_.
 
     - change feed url
 
-        Change the url of a feed. Prompts for one feed and the new url you want to
+        Changes the url of a feed. Prompts for one feed and the new url you want to
         subscribe this feed under.
 
     - deactivate feed
@@ -76,6 +81,40 @@ to choose everything.
 
         Prompts for a list of feeds to reactivate them. This menu is hidden if there
         are no deactivated feeds.
+
+- status
+
+    Displays a list of currently subscribed and active podcasts. For every
+    podcast the number of new, skipped and total episodes are listed. A
+    episode is counted as skipped if you have already seen it in the download
+    dialog but haven't downloaded or hidden it.
+
+- update
+
+    Updates all feeds and show their status.
+
+- download
+
+    Downloads or hides a list of episodes. You are first prompted for a list
+    of podcasts and then an episode filter. You can either filter by "new",
+    "new and skipped" and "all" episodes. The last filter also includes
+    hidden episodes. Then podite show the list of all selected episodes with a
+    little summary. The you will be prompted for a list of episodes you want
+    to download. Then you can select which episodes should be hidden. After
+    that your episodes will be downloaded.
+
+- configure
+
+    Configure podite. You are presented with a list of configuration options than
+    you can change.
+
+    - download\_dir
+
+        Base directory where downloaded podcasts will be saved.
+
+- quit
+
+    Quit podite.
 
 # COPYRIGHT AND LICENSE
 
