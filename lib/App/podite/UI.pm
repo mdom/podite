@@ -33,10 +33,10 @@ sub list_things {
     my $idx = 1;
     for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
-        print term_escape(
-            encode(
-                'UTF-8', sprintf $fmt,
-                $idx++, Text::Wrap::wrap( "", $prefix, $title )
+        print encode(
+            'UTF-8',
+            term_escape(
+                sprintf $fmt, $idx++, Text::Wrap::wrap( "", $prefix, $title )
             )
         );
     }
