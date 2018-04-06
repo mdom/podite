@@ -46,14 +46,18 @@ sub expand_list {
         }
         elsif (/^(\d+)-(\d+)$/) {
             my ( $from, $to ) = ( $1, $2 );
-            $to = $length if $to > $length;
+            $to   = $length if $to > $length;
+            $from = 1       if $from < 1;
             push @result, $from .. $to;
         }
         elsif (/^(\d+)-$/) {
+            my $from = $1;
+            $from = 1 if $from < 1;
             push @result, $1 .. $length;
         }
         elsif (/^(\d+)$/) {
-            push @result, $1 if $1 <= $length;
+            next if $1 < 1 || $1 > $length;
+            push @result, $1;
         }
     }
     return @result;
