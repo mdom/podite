@@ -73,57 +73,54 @@ sub expand_list {
 sub choose_many {
     my ( $prompt, $things, %options ) = @_;
     $things = maybe_code($things);
-    while (1) {
-        if ( !$options{hide} ) {
-            list_things($things);
-        }
-        my $k = prompt("$prompt>");
-
-        return if !defined $k;
-        return if $k && 'quit' =~ /^\Q$k/;
-
-        next if $k =~ /^\s+$/;
-        my @list = expand_list( $k, scalar @$things );
-        my @selected = @{$things}[ map { $_ - 1 } @list ];
-
-        if (@selected) {
-            return [ map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ }
-                  @selected ];
-        }
+    if ( !$options{hide} ) {
+        list_things($things);
     }
+    my $k = prompt("$prompt>");
+
+    return if !defined $k;
+    return if $k && 'quit' =~ /^\Q$k/;
+
+    next if $k =~ /^\s+$/;
+    my @list = expand_list( $k, scalar @$things );
+    my @selected = @{$things}[ map { $_ - 1 } @list ];
+
+    if (@selected) {
+        return [ map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ }
+              @selected ];
+    }
+    return;
 }
 
 sub choose_one {
     my ( $prompt, $things, %options ) = @_;
     $things = maybe_code($things);
-    while (1) {
-        if ( !$options{hide} ) {
-            list_things($things);
-        }
-
-        my $k = prompt($prompt);
-
-        return if !defined $k;
-
-        next if $k =~ /^\s+$/;
-
-        my $thing;
-        if ( $k =~ /^[0-9]+$/ && $k >= 0 && $k <= @$things ) {
-            $thing = $things->[ $k - 1 ];
-        }
-
-        my @match = grep { $_->[0] =~ /^\Q$k/ } @$things;
-        if ( @match == 1 ) {
-            $thing = $match[0]->[1];
-        }
-        if ($thing) {
-            if ( ref($thing) eq 'ARRAY' && @$thing == 2 ) {
-                return $thing->[1];
-            }
-            return $thing;
-        }
-        return '';
+    if ( !$options{hide} ) {
+        list_things($things);
     }
+
+    my $k = prompt($prompt);
+
+    return if !defined $k;
+
+    next if $k =~ /^\s+$/;
+
+    my $thing;
+    if ( $k =~ /^[0-9]+$/ && $k >= 0 && $k <= @$things ) {
+        $thing = $things->[ $k - 1 ];
+    }
+
+    my @match = grep { $_->[0] =~ /^\Q$k/ } @$things;
+    if ( @match == 1 ) {
+        $thing = $match[0]->[1];
+    }
+    if ($thing) {
+        if ( ref($thing) eq 'ARRAY' && @$thing == 2 ) {
+            return $thing->[1];
+        }
+        return $thing;
+    }
+    return '';
 }
 
 sub menu {
