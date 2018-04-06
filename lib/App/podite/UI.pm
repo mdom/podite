@@ -28,6 +28,8 @@ sub list_things {
     my $fmt     = "%${padding}s. %s\n";
     my $prefix  = " " x ( $padding + 2 );
 
+    local $Text::Wrap::unexpand = 0;
+
     my $idx = 1;
     for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
