@@ -417,9 +417,7 @@ sub render_item {
     my ( $self, $item ) = @_;
 
     my $summary = substr( render_content($item) || '', 0, 120 );
-    return encode( 'UTF-8',
-        $item->feed->title . ': ' . $item->title . "\n" . $summary )
-      . "\n";
+    return $item->feed->title . ': ' . $item->title . "\n" . $summary . "\n";
 }
 
 sub download {
