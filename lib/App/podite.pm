@@ -431,6 +431,11 @@ sub download {
       sort { $a->published <=> $b->published }
       map  { $_->items->each } @$feeds;
 
+    if ( !@items ) {
+        warn "No episodes found.\n";
+        return 1;
+    }
+
     my $selection = [ map { [ $self->render_item($_), $_ ] } @items ];
 
     my %skipped = map { $_->id => $_ } @items;
