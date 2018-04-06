@@ -5,7 +5,8 @@ use Text::Wrap ();
 use Mojo::Util 'encode';
 use Carp       ();
 
-our @EXPORT_OK = ( 'menu', 'choose_many', 'prompt', 'choose_one' );
+our @EXPORT_OK =
+  ( 'menu', 'choose_many', 'prompt', 'choose_one', 'list_things' );
 
 sub prompt {
     my ($msg) = @_;

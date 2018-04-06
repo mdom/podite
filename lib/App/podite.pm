@@ -8,7 +8,7 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Util 'slugify', 'encode';
 use Fcntl qw(:flock O_RDWR O_CREAT);
 use App::podite::URLQueue;
-use App::podite::UI qw(menu choose_one choose_many prompt);
+use App::podite::UI qw(menu choose_one choose_many prompt list_things);
 use App::podite::Util 'path';
 use App::podite::Render 'render_content';
 use App::podite::Directory;
@@ -408,13 +408,8 @@ sub status {
         }
         push @rows, \@row;
     }
-    my $fmt = '%'
-      . length( scalar @rows ) . 'd.   '
-      . join( ' / ', map { "\%${_}d" } @spec )
-      . "   %s\n";
-    for my $i ( 0 .. $#rows ) {
-        printf( $fmt, $i + 1, @{ $rows[$i] } );
-    }
+    my $fmt = join( ' / ', map { "\%${_}d" } @spec ) . "   %s";
+    list_things( [ map { sprintf( $fmt, @$_ ) } @rows ] );
     return 1;
 }
 
