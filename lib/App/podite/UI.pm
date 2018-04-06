@@ -80,7 +80,13 @@ sub choose_many {
         my $k = prompt("$prompt>");
 
         return if !defined $k;
-        return if 'quit' =~ /^\Q$k/;
+        return if $k && 'quit' =~ /^\Q$k/;
+
+        ## Default for choose_many is to select all items
+        if ( $k eq '' ) {
+            return [ map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ }
+                  @$things ];
+        }
 
         next if $k =~ /^\s+$/;
         my @list = expand_list( $k, scalar @$things );
@@ -90,7 +96,6 @@ sub choose_many {
             return [ map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ }
                   @selected ];
         }
-        return;
     }
 }
 
@@ -107,6 +112,13 @@ sub choose_one {
         return if !defined $k;
 
         next if $k =~ /^\s+$/;
+
+        ## Default for choose_one is to select first item
+        if ( $k eq '' ) {
+            my $thing = $things->[0];
+            return
+              ref($thing) eq 'ARRAY' && @$thing == 2 ? $thing->[1] : $thing;
+        }
 
         my $thing;
         if ( $k =~ /^[0-9]+$/ && $k >= 0 && $k <= @$things ) {
