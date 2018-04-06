@@ -2,15 +2,15 @@ package App::podite::UI;
 use Mojo::Base -strict;
 use Exporter 'import';
 use Text::Wrap ();
-use Mojo::Util 'encode';
-use Carp       ();
+use Mojo::Util 'encode', 'term_escape';
+use Carp ();
 
 our @EXPORT_OK =
   ( 'menu', 'choose_many', 'prompt', 'choose_one', 'list_things' );
 
 sub prompt {
     my ($msg) = @_;
-    print "$msg> ";
+    print term_escape("$msg> ");
     my $k = <STDIN>;
     if ( !$k ) {
         print "\n";
@@ -31,8 +31,12 @@ sub list_things {
     my $idx = 1;
     for my $thing ( @{$things} ) {
         my $title = ref($thing) eq 'ARRAY' ? $thing->[0] : $thing;
-        print encode( 'UTF-8', sprintf $fmt, $idx++,
-            Text::Wrap::wrap( "", $prefix, $title ) );
+        print term_escape(
+            encode(
+                'UTF-8', sprintf $fmt,
+                $idx++, Text::Wrap::wrap( "", $prefix, $title )
+            )
+        );
     }
     return;
 }
