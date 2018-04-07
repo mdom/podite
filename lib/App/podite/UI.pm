@@ -128,8 +128,6 @@ sub menu {
 
     $menu->{error_msg} ||= 'Huh?';
 
-    $menu->{run_on_startup}->() if $menu->{run_on_startup};
-
     while (1) {
 
         my $prompt = maybe_code( $menu->{prompt_msg} ) || 'What now';

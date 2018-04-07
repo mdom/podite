@@ -174,10 +174,11 @@ sub run {
         }
     }
 
+    $self->status;
+
     menu(
         {
-            run_on_startup => sub { $self->status },
-            commands       => [
+            commands => [
                 sub { $self->submenu_manage_feeds },
                 {
                     title  => 'status',
