@@ -298,7 +298,7 @@ sub submenu_manage_feeds {
 sub submenu_configure {
     my $self = shift;
     my @commands;
-    for my $key ( keys %{ $self->defaults } ) {
+    for my $key ( sort keys %{ $self->defaults } ) {
         my $val = $self->get_config($key);
         push @commands, "$key ($val)" => sub {
             my $arg = prompt($key);
