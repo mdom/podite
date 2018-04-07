@@ -13,7 +13,6 @@ use App::podite::Util 'path';
 use App::podite::Render 'render_content';
 use App::podite::Directory;
 use File::stat;
-use Scalar::Util 'refaddr';
 
 our $VERSION = "0.03";
 
@@ -428,18 +427,6 @@ sub download {
         );
     }
     return $q->wait;
-}
-
-sub skip_feed {
-    my ( $self, $feed, $state, @items ) = @_;
-    my @new_items;
-    for my $item (@items) {
-        $self->item_state( $item => $state );
-        if ( refaddr( $item->feed ) != refaddr($feed) ) {
-            push @new_items, $item;
-        }
-    }
-    return @new_items;
 }
 
 sub item_state {
