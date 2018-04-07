@@ -124,35 +124,38 @@ sub choose_one {
 }
 
 sub menu {
-    my $menu = shift;
-
-    $menu->{error_msg} ||= 'Huh?';
-
     while (1) {
 
-        my $prompt = maybe_code( $menu->{prompt_msg} ) || 'What now';
-
-        my @commands =
-          grep { $_->{commands} || $_->{action} }
-          map { maybe_code($_) } @{ maybe_code( $menu->{commands} ) };
+        my $menu = maybe_code( $_[0] );
 
         say "*** Commands ***";
 
-        my $command = choose_one( $prompt,
-            [ map { [ maybe_code( $_->{title} ), $_ ] } @commands ] );
+        my @selection;
+        my $i = 0;
+        while ( $menu->[$i] && $menu->[ $i + 1 ] ) {
+            push @selection, [ $menu->[$i] => $menu->[ $i + 1 ] ];
+            $i += 2;
+        }
+
+        my $command = choose_one( "What now?", \@selection );
 
         last if !defined $command;
 
         if ( !$command ) {
-            warn $menu->{error_msg}, "\n";
+            warn "Huh\n";
             next;
         }
 
-        if ( $command->{commands} ) {
-            menu($command);
+        if ( ref $command eq 'ARRAY' ) {
+            if ( ref $command->[0] eq 'CODE' ) {
+                menu( $command->[0] );
+            }
+            else {
+                menu($command);
+            }
         }
         else {
-            last if !$command->{action}->();
+            last if !$command->();
         }
     }
     return;

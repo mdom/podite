@@ -177,52 +177,38 @@ sub run {
     $self->status;
 
     menu(
-        {
-            commands => [
-                sub { $self->submenu_manage_feeds },
-                {
-                    title  => 'status',
-                    action => sub { $self->status; return 1; },
-                },
-                {
-                    title  => 'update',
-                    action => sub { $self->update; $self->status; return 1; },
-                },
-                {
-                    title  => 'download',
-                    action => sub {
-                        my $feeds = choose_many(
-                            'filter by feed' => sub { $self->query_feeds } );
-                        return 1 if !$feeds || !@$feeds;
+        [
+            "manage feeds" => [ sub { $self->submenu_manage_feeds } ],
+            status         => sub { $self->status; return 1; },
+            update         => sub { $self->update; $self->status; return 1; },
+            download       => sub {
+                my $feeds =
+                  choose_many( 'filter by feed' => sub { $self->query_feeds } );
+                return 1 if !$feeds || !@$feeds;
 
-                        my $filter = choose_one(
-                            'filter by state' => [
-                                [ all => sub { 1 } ],
-                                [
-                                    new => sub {
-                                        $self->item_is_new( $_[0] );
-                                    },
-                                ],
-                                [
-                                    'new & skipped' => sub {
-                                        my $state = $self->item_state($_);
-                                        !$state || $state eq 'skipped';
-                                    }
-                                ],
-                            ]
-                        );
-                        return 1 if !$filter;
-                        $self->download( $feeds, $filter );
-                        return 1;
-                    },
-                },
-                sub { $self->submenu_configure },
-                {
-                    title  => 'quit',
-                    action => sub { 0 },
-                },
-            ],
-        }
+                my $filter = choose_one(
+                    'filter by state' => [
+                        [ all => sub { 1 } ],
+                        [
+                            new => sub {
+                                $self->item_is_new( $_[0] );
+                            },
+                        ],
+                        [
+                            'new & skipped' => sub {
+                                my $state = $self->item_state($_);
+                                !$state || $state eq 'skipped';
+                            }
+                        ],
+                    ]
+                );
+                return 1 if !$filter;
+                $self->download( $feeds, $filter );
+                return 1;
+            },
+            configure => [ sub { $self->submenu_configure } ],
+            quit      => sub { 0 },
+        ]
     );
 
     say "Bye.";
@@ -237,68 +223,49 @@ sub is_active {
 sub submenu_manage_feeds {
     my ($self) = @_;
     my @commands = (
-        {
-            title    => 'add feed',
-            commands => [
-                {
-                    title  => 'add feed with url',
-                    action => sub {
-                        my $url = prompt('url for new feed');
-                        return 1 if !$url;
-                        $self->add_feed($url);
-                        return 1;
-                    },
-                },
-                {
-                    title  => 'search and add feed',
-                    action => sub {
-                        my $term = prompt('search term');
-                        return 1 if !$term;
-
-                        my $result = $self->directory->search($term);
-                        if ( !@$result ) {
-                            warn "No results.\n";
-                            return 1;
-                        }
-
-                        my $selection = [
-                            map {
-                                [
-                                    $_->{title} . "(" . $_->{website} . ")",
-                                    $_->{url}
-                                ]
-                            } @$result
-                        ];
-                        my $selected = choose_many( $term => $selection );
-                        $self->add_feed(@$selected) if $selected;
-                        return 1;
-                    },
-                },
-            ]
-        },
-        {
-            title  => 'delete feed',
-            action => sub {
-                my $feeds =
-                  choose_many( 'which feeds' => sub { $self->query_feeds } );
-                return 1 if !$feeds;
-                $self->delete_feed($feeds);
+        'add feed' => [
+            'add feed with url' => sub {
+                my $url = prompt('url for new feed');
+                return 1 if !$url;
+                $self->add_feed($url);
                 return 1;
             },
-        },
-        {
-            title  => 'change feed url',
-            action => sub {
-                my $feed =
-                  choose_one( 'change feed', sub { $self->query_feeds } );
-                return 1 if !$feed;
+            'search and add feed' => sub {
+                my $term = prompt('search term');
+                return 1 if !$term;
 
-                my $new_url = prompt('new url for feed');
-                return 1 if !$new_url;
+                my $result = $self->directory->search($term);
+                if ( !@$result ) {
+                    warn "No results.\n";
+                    return 1;
+                }
 
-                $self->change_feed_url( $feed, $new_url );
+                my $selection = [
+                    map {
+                        [ $_->{title} . "(" . $_->{website} . ")", $_->{url} ]
+                    } @$result
+                ];
+                my $selected = choose_many( $term => $selection );
+                $self->add_feed(@$selected) if $selected;
                 return 1;
             },
+        ],
+        'delete feed' => sub {
+            my $feeds =
+              choose_many( 'which feeds' => sub { $self->query_feeds } );
+            return 1 if !$feeds;
+            $self->delete_feed($feeds);
+            return 1;
+        },
+        'change feed url' => sub {
+            my $feed = choose_one( 'change feed', sub { $self->query_feeds } );
+            return 1 if !$feed;
+
+            my $new_url = prompt('new url for feed');
+            return 1 if !$new_url;
+
+            $self->change_feed_url( $feed, $new_url );
+            return 1;
         },
     );
 
@@ -307,60 +274,44 @@ sub submenu_manage_feeds {
     my $inactive = @feeds - $active;
 
     if ($active) {
-        push @commands, {
-            title  => 'deactivate feed',
-            action => sub {
-                my $feed =
-                  choose_many( 'change feed', sub { $self->query_feeds } );
-                return 1 if !$feed;
-                $self->deactivate_feed($feed);
-                return 1;
-            },
+        push @commands, 'deactivate feed' => sub {
+            my $feed = choose_many( 'change feed', sub { $self->query_feeds } );
+            return 1 if !$feed;
+            $self->deactivate_feed($feed);
+            return 1;
         };
     }
 
     if ($inactive) {
-        push @commands, {
-            title  => 'activate feed',
-            action => sub {
-                my $feed = choose_many(
-                    'change feed',
-                    sub {
-                        $self->query_feeds( sub { !$self->is_active( $_[0] ) }
-                        );
-                    }
-                );
-                return 1 if !$feed;
-                $self->activate_feed($feed);
-                return 1;
-            },
+        push @commands, 'activate feed' => sub {
+            my $feed = choose_many(
+                'change feed',
+                sub {
+                    $self->query_feeds( sub { !$self->is_active( $_[0] ) } );
+                }
+            );
+            return 1 if !$feed;
+            $self->activate_feed($feed);
+            return 1;
         };
     }
 
-    return {
-        title    => 'manage feeds',
-        commands => \@commands
-    };
+    return \@commands;
 }
 
 sub submenu_configure {
     my $self = shift;
     my @commands;
     for my $key ( keys %{ $self->defaults } ) {
-        push @commands, {
-            title  => sub { "$key (" . $self->get_config($key) . ")" },
-            action => sub {
-                my $arg = prompt($key);
-                return if !defined $arg;
-                ## TODO Check if output_filename compiles and give the user an example
-                $self->config->{$key} = $arg;
-            },
+        my $val = $self->get_config($key);
+        push @commands, "$key ($val)" => sub {
+            my $arg = prompt($key);
+            return if !defined $arg;
+            ## TODO Check if output_filename compiles and give the user an example
+            $self->config->{$key} = $arg;
         };
     }
-    return {
-        title    => 'configure',
-        commands => \@commands,
-    };
+    return \@commands,;
 }
 
 sub item_is_new {
