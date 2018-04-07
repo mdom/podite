@@ -183,8 +183,8 @@ sub run {
             update         => sub { $self->update; $self->status; return 1; },
             download       => sub {
                 my $feeds =
-                  choose_many( 'filter by feed' => sub { $self->query_feeds } );
-                return 1 if !$feeds || !@$feeds;
+                  choose_many( 'filter by feed' => sub { $self->query_feeds } )
+                  or return 1;
 
                 my $filter = choose_one(
                     'filter by state' => [
@@ -201,8 +201,7 @@ sub run {
                             }
                         ],
                     ]
-                );
-                return 1 if !$filter;
+                ) or return 1;
                 $self->download( $feeds, $filter );
                 return 1;
             },
@@ -231,8 +230,7 @@ sub submenu_manage_feeds {
                 return 1;
             },
             'search and add feed' => sub {
-                my $term = prompt('search term');
-                return 1 if !$term;
+                my $term = prompt('search term') or return 1;
 
                 my $result = $self->directory->search($term);
                 if ( !@$result ) {
@@ -252,17 +250,16 @@ sub submenu_manage_feeds {
         ],
         'delete feed' => sub {
             my $feeds =
-              choose_many( 'which feeds' => sub { $self->query_feeds } );
-            return 1 if !$feeds;
+              choose_many( 'which feeds' => sub { $self->query_feeds } )
+              or return 1;
             $self->delete_feed($feeds);
             return 1;
         },
         'change feed url' => sub {
-            my $feed = choose_one( 'change feed', sub { $self->query_feeds } );
-            return 1 if !$feed;
+            my $feed = choose_one( 'change feed', sub { $self->query_feeds } )
+              or return 1;
 
-            my $new_url = prompt('new url for feed');
-            return 1 if !$new_url;
+            my $new_url = prompt('new url for feed') or return 1;
 
             $self->change_feed_url( $feed, $new_url );
             return 1;
@@ -275,8 +272,8 @@ sub submenu_manage_feeds {
 
     if ($active) {
         push @commands, 'deactivate feed' => sub {
-            my $feed = choose_many( 'change feed', sub { $self->query_feeds } );
-            return 1 if !$feed;
+            my $feed = choose_many( 'change feed', sub { $self->query_feeds } )
+              or return 1;
             $self->deactivate_feed($feed);
             return 1;
         };
@@ -289,8 +286,7 @@ sub submenu_manage_feeds {
                 sub {
                     $self->query_feeds( sub { !$self->is_active( $_[0] ) } );
                 }
-            );
-            return 1 if !$feed;
+            ) or return 1;
             $self->activate_feed($feed);
             return 1;
         };
