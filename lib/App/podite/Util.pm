@@ -16,7 +16,7 @@ sub expand_filename {
 }
 
 sub path {
-    Mojo::File::path( expand_filename(shift) );
+    return Mojo::File::path( expand_filename(shift) );
 }
 
 1;

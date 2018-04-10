@@ -73,7 +73,7 @@ has feeds => sub { {} };
 
 sub get_config {
     my ( $self, $key ) = @_;
-    $self->config->{$key} || $self->defaults->{$key};
+    return $self->config->{$key} || $self->defaults->{$key};
 }
 
 sub DESTROY {
@@ -81,6 +81,7 @@ sub DESTROY {
     if ( $self->state_fh ) {
         $self->write_state;
     }
+    return;
 }
 
 sub query_feeds {
@@ -95,7 +96,10 @@ sub query_feeds {
 
 sub items {
     my ( $self, @feeds ) = @_;
-    sort { $b->published <=> $a->published } map { $_->items->each } @feeds;
+    return (
+        sort { $b->published <=> $a->published }
+        map  { $_->items->each } @feeds
+    );
 }
 
 sub add_feed {
@@ -215,7 +219,7 @@ sub run {
 
 sub is_active {
     my ( $self, $feed ) = @_;
-    !$self->state->{subscriptions}->{ $feed->source }->{inactive};
+    return !$self->state->{subscriptions}->{ $feed->source }->{inactive};
 }
 
 sub submenu_manage_feeds {
@@ -318,7 +322,7 @@ sub sort_feeds {
     my ( $self, $sort_by ) = @_;
     my @feeds = values %{ $self->feeds };
     if ( $sort_by eq 'title' ) {
-        return sort { lc( $a->title ) cmp lc( $b->title ) } @feeds;
+        return ( sort { lc( $a->title ) cmp lc( $b->title ) } @feeds );
     }
     elsif ( $sort_by eq 'added' ) {
         my $states = $self->state->{subscriptions};
@@ -531,7 +535,7 @@ sub update {
                         open( my $fh, '>', $cache_file )
                           or die "Can't open cache file $cache_file: $!\n";
                         print $fh $body;
-
+                        close($fh);
                         $self->cache_feed( $url => $self->feedr->parse($body) );
                     }
                     elsif ( $res->code eq 304 ) {
