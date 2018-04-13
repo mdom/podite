@@ -38,9 +38,7 @@ you can make more than one selection, either seperated with spaces or
 commas. You can also use ranges. E.g. "2-5 7,9" to choose 2,3,4,5,7,9
 from the list. If the second number in a range is omitted, all remaining
 choices are selected. E.g. "7-" to choose 7,8,9 from the list. You can
-say _\*_ to choose everything. Pressing _return_ when prompted for one
-choice will select the first choice, and choose everything when multiple
-selections are allowed.
+say _\*_ to choose everything.
 
 You can leave menus by pressing _CTRL-D_. This will also abort an action
 when prompted for arguments.
