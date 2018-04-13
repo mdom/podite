@@ -6,14 +6,15 @@ use File::stat;
 use Mojo::Feed::Reader;
 
 use Mojo::JSON qw(encode_json decode_json);
+use Mojo::Loader qw(data_section);
 use Mojo::Template;
 use Mojo::URL;
 use Mojo::Util 'slugify', 'encode';
 
 use App::podite::Directory;
 use App::podite::Render 'render_content';
+use App::podite::UI qw(menu choose_one choose_many prompt list_things yesno);
 use App::podite::URLQueue;
-use App::podite::UI qw(menu choose_one choose_many prompt list_things);
 use App::podite::Util 'path';
 
 our $VERSION = "0.03";
@@ -269,6 +270,16 @@ sub submenu_manage_feeds {
             $self->change_feed_url( $feed, $new_url );
             return 1;
         },
+        'export feeds to opml' => sub {
+            my $file = prompt('filename');
+            return 1 if !$file;
+            if ( -e $file ) {
+                my $overwrite = yesno('Overwrite existing file');
+                return 1 if !$overwrite;
+            }
+            $self->export_opml( path($file) );
+            return 1;
+        },
     );
 
     my @feeds    = values %{ $self->feeds };
@@ -313,6 +324,14 @@ sub submenu_configure {
         };
     }
     return \@commands,;
+}
+
+sub export_opml {
+    my ( $self, $file ) = @_;
+    my $mt = Mojo::Template->new( vars => 1 );
+    $mt->parse( data_section(__PACKAGE__)->{'template.opml'} );
+    $file->spurt( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) );
+    return;
 }
 
 sub item_is_new {
@@ -577,6 +596,22 @@ sub read_state {
 }
 
 1;
+
+__DATA__
+
+@@ template.opml
+
+<?xml version="1.0" encoding="utf-8"?>
+<opml version="1.0">
+	<head>
+		<title>My Feeds</title>
+	</head>
+	<body>
+% for my $feed ( @$feeds ) {
+		<outline text="<%== $feed->title %>" type="rss" xmlUrl="<%== $feed->source %>" />
+% }
+	</body>
+</opml>
 
 __END__
 
