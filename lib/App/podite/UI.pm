@@ -6,7 +6,7 @@ use Mojo::Util 'encode', 'term_escape';
 use Carp ();
 
 our @EXPORT_OK =
-  ( 'menu', 'choose_many', 'prompt', 'choose_one', 'list_things' );
+  ( 'menu', 'choose_many', 'prompt', 'choose_one', 'list_things', 'yesno' );
 
 sub prompt {
     my ($msg) = @_;
@@ -18,6 +18,23 @@ sub prompt {
     }
     chomp($k);
     return $k;
+}
+
+sub yesno {
+    my ($msg) = @_;
+    while (1) {
+        my $ret = prompt("$msg? (yes/no)");
+        if ( $ret eq 'y' || $ret eq 'yes' ) {
+            return 1;
+        }
+        elsif ( $ret eq 'n' || $ret eq 'no' ) {
+            return 0;
+        }
+        else {
+            warn "Please enter yes or no.\n";
+        }
+    }
+    return;
 }
 
 sub list_things {
