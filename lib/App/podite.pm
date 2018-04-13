@@ -1,18 +1,20 @@
 package App::podite;
 use Mojo::Base -base;
 
-use Mojo::Feed::Reader;
-use Mojo::URL;
-use Mojo::Template;
-use Mojo::JSON qw(encode_json decode_json);
-use Mojo::Util 'slugify', 'encode';
 use Fcntl qw(:flock O_RDWR O_CREAT);
+use File::stat;
+use Mojo::Feed::Reader;
+
+use Mojo::JSON qw(encode_json decode_json);
+use Mojo::Template;
+use Mojo::URL;
+use Mojo::Util 'slugify', 'encode';
+
+use App::podite::Directory;
+use App::podite::Render 'render_content';
 use App::podite::URLQueue;
 use App::podite::UI qw(menu choose_one choose_many prompt list_things);
 use App::podite::Util 'path';
-use App::podite::Render 'render_content';
-use App::podite::Directory;
-use File::stat;
 
 our $VERSION = "0.03";
 
