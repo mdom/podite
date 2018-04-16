@@ -10,6 +10,7 @@ use Mojo::Loader qw(data_section);
 use Mojo::Template;
 use Mojo::URL;
 use Mojo::Util 'slugify', 'encode';
+use Mojo::ByteStream 'b';
 
 use App::podite::Directory;
 use App::podite::Render 'render_content';
@@ -355,7 +356,8 @@ sub export_opml {
     my ( $self, $file ) = @_;
     my $mt = Mojo::Template->new( vars => 1 );
     $mt->parse( data_section(__PACKAGE__)->{'template.opml'} );
-    $file->spurt( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) );
+    $file->spurt( b( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) )
+          ->encode );
     return;
 }
 
@@ -633,7 +635,7 @@ __DATA__
 	</head>
 	<body>
 % for my $feed ( @$feeds ) {
-		<outline text="<%== $feed->title %>" type="rss" xmlUrl="<%== $feed->source %>" />
+		<outline text="<%== $feed->title %>"<% if ($feed->description) { %> description="<%== $feed->description %>" <% } %>type="rss" xmlUrl="<%== $feed->source %>" />
 % }
 	</body>
 </opml>
