@@ -276,6 +276,25 @@ sub submenu_manage_feeds {
             $self->change_feed_url( $feed, $new_url );
             return 1;
         },
+        'import feeds from opml' => sub {
+            my $file = prompt('filename');
+            return 1 if !$file;
+            if ( !-e $file ) {
+                warn "File $file not found.\n";
+                return 1;
+            }
+            my @subscriptions = $self->feedr->parse_opml( path($file) );
+            if (@subscriptions) {
+                my $new_feeds =
+                  choose_many( 'which feeds' =>
+                      [ map { [ $_->{text} => $_->{xmlUrl} ] } @subscriptions ]
+                  );
+                if ($new_feeds) {
+                    $self->add_feed(@$new_feeds);
+                }
+            }
+            return 1;
+        },
         'export feeds to opml' => sub {
             my $file = prompt('filename');
             return 1 if !$file;
