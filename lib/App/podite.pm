@@ -381,7 +381,7 @@ sub status {
         my @row = ( $new, $skipped, $total, $feed->title );
         for my $i ( 0 .. 2 ) {
             my $len = length( $row[$i] );
-            @spec[$i] = $len if $len >= ( $spec[$i] // 0 );
+            $spec[$i] = $len if $len >= ( $spec[$i] // 0 );
         }
         push @rows, \@row;
     }
