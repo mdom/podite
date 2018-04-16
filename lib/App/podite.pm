@@ -159,14 +159,19 @@ sub deactivate_feed {
     return;
 }
 
+sub init {
+    my $self = shift;
+    $self->ua->proxy->detect;
+    $self->share_dir->make_path;
+    $self->cache_dir->make_path;
+    return $self;
+}
+
 sub run {
 
     my ( $self, @argv ) = @_;
 
-    $self->ua->proxy->detect;
-
-    $self->share_dir->make_path;
-    $self->cache_dir->make_path;
+    $self->init;
 
     $self->update;
 
