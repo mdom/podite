@@ -131,8 +131,8 @@ sub change_feed_url {
 }
 
 sub delete_feed {
-    my ( $self, $feeds ) = @_;
-    for my $feed (@$feeds) {
+    my ( $self, @feeds ) = @_;
+    for my $feed (@feeds) {
         delete $self->feeds->{ $feed->source };
         delete $self->state->{subscriptions}->{ $feed->source };
         unlink $self->cache_dir->child( slugify( $feed->source ) )->to_string;
@@ -258,7 +258,7 @@ sub submenu_manage_feeds {
             my $feeds =
               choose_many( 'which feeds' => sub { $self->query_feeds } )
               or return 1;
-            $self->delete_feed($feeds);
+            $self->delete_feed(@$feeds);
             return 1;
         },
         'change feed url' => sub {
