@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/mdom/podite.svg?branch=master)](https://travis-ci.org/mdom/podite)
 # NAME
 
 podite - Command line podcast aggregator
