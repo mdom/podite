@@ -53,6 +53,26 @@ subcmd 'App::podite::download' => (
     },
 );
 
+subcmd 'App::podite::opml' => (
+    comment => 'Import or export opml',
+    optargs => sub {
+        arg command => (
+            isa      => 'SubCmd',
+            comment  => '',
+            required => 1,
+            abbrev   => 1,
+        );
+    },
+);
+
+subcmd 'App::podite::opml::export' => (
+    comment => 'Export feeds to opml file',
+    optargs => sub {
+        arg opml_file =>
+          ( isa => 'Str', comment => 'Target file', required => 1 );
+    },
+);
+
 our $VERSION = "0.03";
 
 has ua => sub {
@@ -301,16 +321,6 @@ sub submenu_manage_feeds {
                     $self->add_feed(@$new_feeds);
                 }
             }
-            return 1;
-        },
-        'export feeds to opml' => sub {
-            my $file = prompt('filename');
-            return 1 if !$file;
-            if ( -e $file ) {
-                my $overwrite = yesno('Overwrite existing file');
-                return 1 if !$overwrite;
-            }
-            $self->export_opml( path($file) );
             return 1;
         },
     );
