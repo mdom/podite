@@ -24,6 +24,7 @@ has ua => sub {
     my $self = shift;
     my $ua = Mojo::UserAgent->new( max_redirects => 5 );
     $ua->transactor->name("podite/$VERSION (+https://github.com/mdom/podite)");
+    $ua->proxy->detect;
     return $ua;
 };
 
@@ -33,7 +34,7 @@ has share_dir => sub {
       : $^O eq 'MSWin32'    ? $ENV{APPDATA}
       : $ENV{XDG_DATA_HOME} ? $ENV{XDG_DATA_HOME}
       :                       "$ENV{HOME}/.local/share";
-    path($dir)->child('podite');
+    path($dir)->child('podite')->make_path;
 };
 
 has state_file => sub {
@@ -41,7 +42,7 @@ has state_file => sub {
 };
 
 has cache_dir => sub {
-    shift->share_dir->child('cache');
+    shift->share_dir->child('cache')->make_path;
 };
 
 has feedr => sub {
@@ -161,19 +162,9 @@ sub deactivate_feed {
     return;
 }
 
-sub init {
-    my $self = shift;
-    $self->ua->proxy->detect;
-    $self->share_dir->make_path;
-    $self->cache_dir->make_path;
-    return $self;
-}
-
 sub run {
 
     my ( $self, @argv ) = @_;
-
-    $self->init;
 
     $self->update;
 

@@ -8,9 +8,9 @@ use App::podite;
 use Mojo::Feed::Reader;
 use Mojo::File 'tempdir', 'tempfile';
 
-my $share_dir = tempdir;
 my $opml_file = tempfile;
-my $podite    = App::podite->new( share_dir => tempdir() )->init;
+
+my $podite = App::podite->new( share_dir => tempdir->make_path );
 
 # Silence
 app->log->level('fatal');
