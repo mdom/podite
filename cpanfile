@@ -7,6 +7,7 @@ requires 'Mojo::UserAgent';
 requires 'Mojo::Util';
 requires 'Mojo::Feed', '0.16';
 requires 'Text::Wrap';
+requires 'OptArgs2';
 
 on configure => sub {
     requires 'Module::Build::Tiny', '0.035';

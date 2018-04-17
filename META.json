@@ -51,6 +51,7 @@
             "Mojo::URL" : "0",
             "Mojo::UserAgent" : "0",
             "Mojo::Util" : "0",
+            "OptArgs2" : "0",
             "Text::Wrap" : "0"
          }
       }
