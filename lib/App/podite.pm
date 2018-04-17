@@ -18,6 +18,41 @@ use App::podite::UI qw(menu choose_one choose_many prompt list_things yesno);
 use App::podite::URLQueue;
 use App::podite::Util 'path';
 
+use App::podite::new;
+use OptArgs2;
+
+cmd 'App::podite' => (
+    comment => '',
+    optargs => sub {
+        arg command => (
+            isa      => 'SubCmd',
+            comment  => '',
+            required => 1,
+            abbrev   => 1,
+        );
+    },
+);
+
+subcmd 'App::podite::new' =>
+  ( comment => 'Update all feeds and list new episodes' );
+
+subcmd 'App::podite::update' =>
+  ( comment => 'Update all feeds and list feeds' );
+
+subcmd 'App::podite::status' => ( comment => 'List feeds' );
+
+subcmd 'App::podite::download' => (
+    comment => 'Download episodes',
+    optargs => sub {
+        arg list => (
+            comment  => 'List of episodes to download',
+            isa      => 'Str',
+            greedy   => 1,
+            required => 1,
+        );
+    },
+);
+
 our $VERSION = "0.03";
 
 has ua => sub {
@@ -81,7 +116,7 @@ sub get_config {
     return $self->config->{$key} || $self->defaults->{$key};
 }
 
-sub DESTROY {
+sub flush {
     my $self = shift;
     if ( $self->state_fh ) {
         $self->write_state;
@@ -162,26 +197,12 @@ sub deactivate_feed {
     return;
 }
 
-sub run {
+sub is_active {
+    my ( $self, $feed ) = @_;
+    return !$self->state->{subscriptions}->{ $feed->source }->{inactive};
+}
 
-    my ( $self, @argv ) = @_;
-
-    $self->update;
-
-    if ( my $cmd = shift @argv ) {
-        if ( $cmd eq 'new' ) {
-            $self->download(
-                [ values %{ $self->feeds } ],
-                sub { $self->item_is_new( $_[0] ) }
-            );
-            exit 0;
-        }
-    }
-
-    $self->status;
-
-    menu(
-        [
+=pod
             "manage feeds" => [ sub { $self->submenu_manage_feeds } ],
             status         => sub { $self->status; return 1; },
             update         => sub { $self->update; $self->status; return 1; },
@@ -216,11 +237,6 @@ sub run {
 
     say "Bye.";
     exit 0;
-}
-
-sub is_active {
-    my ( $self, $feed ) = @_;
-    return !$self->state->{subscriptions}->{ $feed->source }->{inactive};
 }
 
 sub submenu_manage_feeds {
@@ -343,6 +359,8 @@ sub submenu_configure {
     return \@commands,;
 }
 
+=cut
+
 sub export_opml {
     my ( $self, $file ) = @_;
     my $mt = Mojo::Template->new( vars => 1 );
@@ -399,7 +417,7 @@ sub status {
         push @rows, \@row;
     }
     my $fmt = join( ' / ', map { "\%${_}d" } @spec ) . "   %s";
-    list_things( [ map { sprintf( $fmt, @$_ ) } @rows ] );
+    $self->list( [ map { sprintf( $fmt, @$_ ) } @rows ] );
     return 1;
 }
 
@@ -410,66 +428,14 @@ sub render_item {
     return $item->feed->title . ': ' . $item->title . "\n" . $summary . "\n";
 }
 
-sub download {
-    my ( $self, $feeds, $filter ) = @_;
-
-    return 1 if !$feeds;
-    return 1 if !@$feeds;
-    $filter = $filter ? $filter : sub { 1 };
-
-    my @items = grep { $filter->($_) }
-      sort { $a->published <=> $b->published }
-      map  { $_->items->each } @$feeds;
-
-    if ( !@items ) {
-        warn "No episodes found.\n";
-        return 1;
-    }
-
-    my $selection = [ map { [ $self->render_item($_), $_ ] } @items ];
-
-    my %skipped = map { $_->id => $_ } @items;
-
-    my $downloads = choose_many( 'download', $selection );
-    my $hide = choose_many( 'hide', $selection, hide => 1 );
-
+sub hide {
+    my ( $self, $hide ) = @_;
     if ($hide) {
         for my $item (@$hide) {
             $self->item_state( $item => 'hidden' );
-            delete $skipped{ $item->id };
         }
     }
-
-    ## ensures that elements that are in $hide and $downloads remain
-    ## skipped until downloaded
-    if ($downloads) {
-        for my $item (@$downloads) {
-            $skipped{ $item->id } = $item;
-        }
-    }
-
-    for my $item ( values %skipped ) {
-        $self->item_state( $item => 'skipped' );
-    }
-
-    return if !$downloads;
-
-    my $q = App::podite::URLQueue->new( ua => $self->ua );
-    for my $item (@$downloads) {
-        my $download_url = Mojo::URL->new( $item->enclosures->[0]->url );
-        my $output_filename = $self->output_filename( $item => $download_url );
-        $output_filename->dirname->make_path;
-        say "$download_url -> $output_filename";
-        $q->add(
-            $download_url => sub {
-                my ( $ua, $tx, ) = @_;
-                $tx->result->content->asset->move_to($output_filename);
-                $self->item_state( $item => 'downloaded' );
-                warn "Download $output_filename finished\n";
-            }
-        );
-    }
-    return $q->wait;
+    return;
 }
 
 sub item_state {
@@ -517,6 +483,32 @@ sub output_filename {
     return $file;
 }
 
+sub list {
+    my ( $self, $list ) = @_;
+    $self->state->{last_list} = $list;
+    return list_things($list);
+}
+
+sub choose {
+    my ( $self, $k ) = @_;
+    my $things   = $self->state->{last_list};
+    my @list     = App::podite::UI::expand_list( $k, scalar @$things );
+    my @selected = @{$things}[ map { $_ - 1 } @list ];
+
+    if (@selected) {
+        my @things =
+          map { ref($_) eq 'ARRAY' && @$_ == 2 ? $_->[1] : $_ } @selected;
+        for my $thing (@things) {
+            if ( ref $thing eq 'ARRAY' && $thing->[0] eq 'episode' ) {
+                ($thing) = grep { $_->id eq $thing->[2] }
+                  $self->feeds->{ $thing->[1] }->items->each;
+            }
+        }
+        return \@things;
+    }
+    return;
+}
+
 sub cache_feed {
     my ( $self, $url, $feed ) = @_;
     if ($feed) {
@@ -526,8 +518,19 @@ sub cache_feed {
     return;
 }
 
+sub load_cache {
+    my ($self) = @_;
+    my @urls = keys %{ $self->state->{subscriptions} };
+    for my $url (@urls) {
+        my $cache_file = $self->cache_dir->child( slugify($url) );
+        $self->read_cached_feed( $url, $cache_file );
+    }
+    return;
+}
+
 sub read_cached_feed {
     my ( $self, $url, $cache_file ) = @_;
+
     if ( -r $cache_file ) {
         $self->cache_feed( $url => $self->feedr->parse($cache_file) );
     }
