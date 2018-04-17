@@ -583,9 +583,9 @@ sub update {
                 }
                 else {
                     my $err = $tx->error;
-                    warn "$err->{code} response: $err->{message}"
+                    warn "$err->{code} response for $url: $err->{message}"
                       if $err->{code};
-                    warn "Connection error: $err->{message}\n";
+                    warn "Connection error for $url: $err->{message}\n";
                 }
             }
         );
