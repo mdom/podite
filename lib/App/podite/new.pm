@@ -1,9 +1,10 @@
 package App::podite::new;
 use Mojo::Base 'App::podite';
 
+has needs_update => 1;
+
 sub run {
     my ( $self, $opts ) = @_;
-    $self->update;
     my @items = grep { $self->item_is_new($_) }
       sort { $a->published <=> $b->published }
       map  { $_->items->each } values %{ $self->feeds };

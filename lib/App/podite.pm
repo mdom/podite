@@ -65,6 +65,8 @@ subcmd 'App::podite::opml' => (
     },
 );
 
+subcmd 'App::podite::opml::import' =>
+  ( comment => 'Import feeds from opml file' );
 subcmd 'App::podite::opml::export' => (
     comment => 'Export feeds to opml file',
     optargs => sub {
@@ -129,7 +131,15 @@ has state => sub {
     shift->read_state;
 };
 
-has feeds => sub { {} };
+has needs_update => 0;
+
+has feeds => sub {
+    my $self = shift;
+    if ( $self->needs_update ) {
+        $self->download_feeds;
+    }
+    $self->load_feeds;
+};
 
 sub get_config {
     my ( $self, $key ) = @_;
@@ -165,12 +175,13 @@ sub items {
 sub add_feed {
     my ( $self, @urls ) = @_;
     for my $url (@urls) {
-        next if $self->feeds->{$url};
+        next if $self->state->{subscriptions}->{$url};
         $url = Mojo::URL->new($url)->to_string;
-        $self->update($url);
-        if ( $self->feeds->{$url} && !$self->state->{subscriptions}->{$url} ) {
-            $self->state->{subscriptions}->{$url} =
-              {};
+        $self->download_feeds($url);
+        my $feeds = $self->load_feeds($url);
+        if ( $feeds->{$url} ) {
+            $self->state->{subscriptions}->{$url} = {};
+            $self->feeds->{$url} = $feeds->{$url};
         }
     }
     return;
@@ -179,11 +190,12 @@ sub add_feed {
 sub change_feed_url {
     my ( $self, $feed, $new_url ) = @_;
     if ( $feed && $new_url ) {
-        $self->feeds->{$new_url} = delete $self->feeds->{ $feed->source };
+        my $old_url = $feed->source;
+        $self->feeds->{$new_url} = delete $self->feeds->{$old_url};
         $self->state->{subscriptions}->{$new_url} =
-          delete $self->state->{subscriptions}->{ $feed->source };
-        $self->cache_dir->child( slugify( $feed->source ) )
-          ->move_to( $self->cache_dir->child( slugify($new_url) )->to_string );
+          delete $self->state->{subscriptions}->{$old_url};
+        $self->cache_file($old_url)
+          ->move_to( $self->cache_file($new_url)->to_string );
     }
     return;
 }
@@ -191,9 +203,10 @@ sub change_feed_url {
 sub delete_feed {
     my ( $self, @feeds ) = @_;
     for my $feed (@feeds) {
-        delete $self->feeds->{ $feed->source };
-        delete $self->state->{subscriptions}->{ $feed->source };
-        unlink $self->cache_dir->child( slugify( $feed->source ) )->to_string;
+        my $url = $feed->source;
+        delete $self->feeds->{$url};
+        delete $self->state->{subscriptions}->{$url};
+        unlink $self->cache_file($url)->to_string;
     }
     return;
 }
@@ -203,7 +216,7 @@ sub activate_feed {
     for my $feed (@$feeds) {
         my $url = $feed->source;
         $self->state->{subscriptions}->{$url}->{inactive} = 0;
-        $self->update($url);
+        $self->download_feeds($url);
     }
     return;
 }
@@ -224,39 +237,9 @@ sub is_active {
 
 =pod
             "manage feeds" => [ sub { $self->submenu_manage_feeds } ],
-            status         => sub { $self->status; return 1; },
-            update         => sub { $self->update; $self->status; return 1; },
-            download       => sub {
-                my $feeds =
-                  choose_many( 'filter by feed' => sub { $self->query_feeds } )
-                  or return 1;
-
-                my $filter = choose_one(
-                    'filter by state' => [
-                        [ all => sub { 1 } ],
-                        [
-                            new => sub {
-                                $self->item_is_new( $_[0] );
-                            },
-                        ],
-                        [
-                            'new & skipped' => sub {
-                                my $state = $self->item_state($_);
-                                !$state || $state eq 'skipped';
-                            }
-                        ],
-                    ]
-                ) or return 1;
-                $self->download( $feeds, $filter );
-                return 1;
-            },
             configure => [ sub { $self->submenu_configure } ],
-            quit      => sub { 0 },
         ]
     );
-
-    say "Bye.";
-    exit 0;
 }
 
 sub submenu_manage_feeds {
@@ -519,52 +502,20 @@ sub choose {
     return;
 }
 
-sub cache_feed {
-    my ( $self, $url, $feed ) = @_;
-    if ($feed) {
-        $feed->source( Mojo::URL->new($url) );
-        $self->feeds->{$url} = $feed;
-    }
-    return;
+sub cache_file {
+    my ( $self, $url ) = @_;
+    return $self->cache_dir->child( slugify($url) );
 }
 
-sub load_cache {
-    my ($self) = @_;
-    my @urls = keys %{ $self->state->{subscriptions} };
-    for my $url (@urls) {
-        my $cache_file = $self->cache_dir->child( slugify($url) );
-        $self->read_cached_feed( $url, $cache_file );
-    }
-    return;
-}
-
-sub read_cached_feed {
-    my ( $self, $url, $cache_file ) = @_;
-
-    if ( -r $cache_file ) {
-        $self->cache_feed( $url => $self->feedr->parse($cache_file) );
-    }
-    return;
-}
-
-sub update {
+sub download_feeds {
     my ( $self, @urls ) = @_;
     if ( !@urls ) {
         @urls = keys %{ $self->state->{subscriptions} };
     }
+
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-  Feed:
     for my $url (@urls) {
-
-        my $cache_file = $self->cache_dir->child( slugify($url) );
-
-        if ( exists $self->state->{subscriptions}->{$url}
-            && $self->state->{subscriptions}->{$url}->{inactive} )
-        {
-            $self->read_cached_feed( $url => $cache_file );
-            next;
-        }
-
+        my $cache_file = $self->cache_file($url);
         my $tx = $self->ua->build_tx( GET => $url );
         if ( -e $cache_file ) {
             my $date = Mojo::Date->new( stat($cache_file)->mtime );
@@ -578,20 +529,10 @@ sub update {
                 if ( my $res = $tx->success ) {
                     if ( $res->code eq 200 ) {
                         my $body = $res->body;
-                        my $feed = $self->feedr->parse($body);
-                        if ( !$feed ) {
-                            warn "Can't parse $url as feed.\n";
-                            return;
-                        }
-
                         open( my $fh, '>', $cache_file )
                           or die "Can't open cache file $cache_file: $!\n";
                         print $fh $body;
                         close($fh);
-                        $self->cache_feed( $url => $self->feedr->parse($body) );
-                    }
-                    elsif ( $res->code eq 304 ) {
-                        $self->read_cached_feed( $url => $cache_file );
                     }
                 }
                 else {
@@ -604,6 +545,27 @@ sub update {
         );
     }
     return $q->wait;
+}
+
+sub load_feeds {
+    my ( $self, @urls ) = @_;
+    if ( !@urls ) {
+        @urls = keys %{ $self->state->{subscriptions} };
+    }
+    my %feeds;
+    for my $url (@urls) {
+
+        my $cache_file = $self->cache_file($url);
+
+        $cache_file = $self->cache_file($url) if !$cache_file;
+        next if !-r $cache_file;
+        if ( my $feed = $self->feedr->parse($cache_file) ) {
+            $feed->source( Mojo::URL->new($url) );
+            $feeds{$url} = $feed;
+        }
+    }
+
+    return \%feeds;
 }
 
 sub write_state {
