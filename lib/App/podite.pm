@@ -224,16 +224,6 @@ sub change_feed_url {
     return;
 }
 
-sub delete_feed {
-    my ( $self, @urls ) = @_;
-    for my $url (@urls) {
-        delete $self->feeds->{$url};
-        delete $self->state->{subscriptions}->{$url};
-        unlink $self->cache_file($url)->to_string;
-    }
-    return;
-}
-
 sub activate_feed {
     my ( $self, $feeds ) = @_;
     for my $feed (@$feeds) {
@@ -406,6 +396,23 @@ sub choose {
     return;
 }
 
+sub delete_feeds {
+    my ( $self, @urls ) = @_;
+    my $tx = $self->db->begin;
+    my $result =
+      $self->db->select( podcasts => ['id'], { url => { -in => \@urls } } );
+    for my $id ( $result->hashes->map( sub { $_->{id} } )->each ) {
+        $self->db->query(
+'delete from episodes where id in ( select episode_id from podcasts_episodes where podcast_id = ?)',
+            $id
+        );
+        $self->db->delete( podcasts_episodes => { podcast_id => $id } );
+        $self->db->delete( podcasts          => { id         => $id } );
+    }
+    $tx->commit;
+    return;
+}
+
 sub add_feeds {
     my ( $self, @urls ) = @_;
     my $db_tx = $self->db->begin;
@@ -449,7 +456,8 @@ sub add_feeds {
                             $podcast_id = $result->last_insert_id;
                         }
                         $self->db->delete(
-                            podcasts_episodes => { podcast_id => $podcast_id } );
+                            podcasts_episodes => { podcast_id => $podcast_id }
+                        );
                         for my $episode ( $feed->items->each ) {
                             my $episode_id = $self->db->insert(
                                 episodes => {
