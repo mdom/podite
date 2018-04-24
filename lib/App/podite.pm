@@ -1,16 +1,16 @@
 package App::podite;
 use Mojo::Base -base;
 
-use Fcntl qw(:flock O_RDWR O_CREAT);
 use File::stat;
 use Mojo::Feed::Reader;
 
-use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Loader qw(data_section);
 use Mojo::Template;
 use Mojo::URL;
 use Mojo::Util 'slugify', 'encode';
 use Mojo::ByteStream 'b';
+
+use Mojo::SQLite;
 
 use App::podite::Directory;
 use App::podite::Render 'render_content';
@@ -53,6 +53,42 @@ subcmd 'App::podite::download' => (
     },
 );
 
+subcmd 'App::podite::feed' => (
+    comment => 'Manage feeds',
+    optargs => sub {
+        arg command => (
+            isa      => 'SubCmd',
+            comment  => '',
+            required => 1,
+            abbrev   => 1,
+        );
+    },
+);
+
+subcmd 'App::podite::feed::add' => (
+    comment => 'Add podcasts',
+    optargs => sub {
+        arg url => (
+            comment  => 'URLs of podcasts to add',
+            isa      => 'ArrayRef',
+            greedy   => 1,
+            required => 1,
+        );
+    },
+);
+
+subcmd 'App::podite::feed::delete' => (
+    comment => 'Delete podcasts',
+    optargs => sub {
+        arg url => (
+            comment  => 'URLs of podcasts to delete',
+            isa      => 'ArrayRef',
+            greedy   => 1,
+            required => 1,
+        );
+    },
+);
+
 subcmd 'App::podite::opml' => (
     comment => 'Import or export opml',
     optargs => sub {
@@ -67,6 +103,7 @@ subcmd 'App::podite::opml' => (
 
 subcmd 'App::podite::opml::import' =>
   ( comment => 'Import feeds from opml file' );
+
 subcmd 'App::podite::opml::export' => (
     comment => 'Export feeds to opml file',
     optargs => sub {
@@ -94,12 +131,14 @@ has share_dir => sub {
     path($dir)->child('podite')->make_path;
 };
 
-has state_file => sub {
-    shift->share_dir->child('state');
+has db_file => sub {
+    shift->share_dir->child('database');
 };
 
-has cache_dir => sub {
-    shift->share_dir->child('cache')->make_path;
+has db => sub {
+    my $sql = Mojo::SQLite->new( 'sqlite:' . shift->db_file );
+    $sql->migrations->from_data->migrate;
+    return $sql->db;
 };
 
 has feedr => sub {
@@ -172,21 +211,6 @@ sub items {
     );
 }
 
-sub add_feed {
-    my ( $self, @urls ) = @_;
-    for my $url (@urls) {
-        next if $self->state->{subscriptions}->{$url};
-        $url = Mojo::URL->new($url)->to_string;
-        $self->download_feeds($url);
-        my $feeds = $self->load_feeds($url);
-        if ( $feeds->{$url} ) {
-            $self->state->{subscriptions}->{$url} = {};
-            $self->feeds->{$url} = $feeds->{$url};
-        }
-    }
-    return;
-}
-
 sub change_feed_url {
     my ( $self, $feed, $new_url ) = @_;
     if ( $feed && $new_url ) {
@@ -201,9 +225,8 @@ sub change_feed_url {
 }
 
 sub delete_feed {
-    my ( $self, @feeds ) = @_;
-    for my $feed (@feeds) {
-        my $url = $feed->source;
+    my ( $self, @urls ) = @_;
+    for my $url (@urls) {
         delete $self->feeds->{$url};
         delete $self->state->{subscriptions}->{$url};
         unlink $self->cache_file($url)->to_string;
@@ -234,125 +257,6 @@ sub is_active {
     my ( $self, $feed ) = @_;
     return !$self->state->{subscriptions}->{ $feed->source }->{inactive};
 }
-
-=pod
-            "manage feeds" => [ sub { $self->submenu_manage_feeds } ],
-            configure => [ sub { $self->submenu_configure } ],
-        ]
-    );
-}
-
-sub submenu_manage_feeds {
-    my ($self) = @_;
-    my @commands = (
-        'add feed' => [
-            'add feed with url' => sub {
-                my $url = prompt('url for new feed');
-                return 1 if !$url;
-                $self->add_feed($url);
-                return 1;
-            },
-            'search and add feed' => sub {
-                my $term = prompt('search term') or return 1;
-
-                my $result = $self->directory->search($term);
-                if ( !@$result ) {
-                    warn "No results.\n";
-                    return 1;
-                }
-
-                my $selection = [
-                    map {
-                        [ $_->{title} . "(" . $_->{website} . ")", $_->{url} ]
-                    } @$result
-                ];
-                my $selected = choose_many( $term => $selection );
-                $self->add_feed(@$selected) if $selected;
-                return 1;
-            },
-        ],
-        'delete feed' => sub {
-            my $feeds =
-              choose_many( 'which feeds' => sub { $self->query_feeds } )
-              or return 1;
-            $self->delete_feed(@$feeds);
-            return 1;
-        },
-        'change feed url' => sub {
-            my $feed = choose_one( 'change feed', sub { $self->query_feeds } )
-              or return 1;
-
-            my $new_url = prompt('new url for feed') or return 1;
-
-            $self->change_feed_url( $feed, $new_url );
-            return 1;
-        },
-        'import feeds from opml' => sub {
-            my $file = prompt('filename');
-            return 1 if !$file;
-            if ( !-e $file ) {
-                warn "File $file not found.\n";
-                return 1;
-            }
-            my @subscriptions = $self->feedr->parse_opml( path($file) );
-            if (@subscriptions) {
-                my $new_feeds =
-                  choose_many( 'which feeds' =>
-                      [ map { [ $_->{text} => $_->{xmlUrl} ] } @subscriptions ]
-                  );
-                if ($new_feeds) {
-                    $self->add_feed(@$new_feeds);
-                }
-            }
-            return 1;
-        },
-    );
-
-    my @feeds    = values %{ $self->feeds };
-    my $active   = grep { $self->is_active($_) } @feeds;
-    my $inactive = @feeds - $active;
-
-    if ($active) {
-        push @commands, 'deactivate feed' => sub {
-            my $feed = choose_many( 'change feed', sub { $self->query_feeds } )
-              or return 1;
-            $self->deactivate_feed($feed);
-            return 1;
-        };
-    }
-
-    if ($inactive) {
-        push @commands, 'activate feed' => sub {
-            my $feed = choose_many(
-                'change feed',
-                sub {
-                    $self->query_feeds( sub { !$self->is_active( $_[0] ) } );
-                }
-            ) or return 1;
-            $self->activate_feed($feed);
-            return 1;
-        };
-    }
-
-    return \@commands;
-}
-
-sub submenu_configure {
-    my $self = shift;
-    my @commands;
-    for my $key ( sort keys %{ $self->defaults } ) {
-        my $val = $self->get_config($key);
-        push @commands, "$key ($val)" => sub {
-            my $arg = prompt($key);
-            return if !defined $arg;
-            ## TODO Check if output_filename compiles and give the user an example
-            $self->config->{$key} = $arg;
-        };
-    }
-    return \@commands,;
-}
-
-=cut
 
 sub export_opml {
     my ( $self, $file ) = @_;
@@ -502,37 +406,64 @@ sub choose {
     return;
 }
 
-sub cache_file {
-    my ( $self, $url ) = @_;
-    return $self->cache_dir->child( slugify($url) );
-}
-
-sub download_feeds {
+sub add_feeds {
     my ( $self, @urls ) = @_;
-    if ( !@urls ) {
-        @urls = keys %{ $self->state->{subscriptions} };
-    }
-
+    my $db_tx = $self->db->begin;
     my $q = App::podite::URLQueue->new( ua => $self->ua );
     for my $url (@urls) {
-        my $cache_file = $self->cache_file($url);
         my $tx = $self->ua->build_tx( GET => $url );
-        if ( -e $cache_file ) {
-            my $date = Mojo::Date->new( stat($cache_file)->mtime );
-            $tx->req->headers->if_modified_since($date);
+        my $row = $self->db->select(
+            podcasts => [ 'last_modified', 'id' ],
+            { url => $url }
+        )->hash;
+        my $podcast_id = $row ? $row->{id} : undef;
+        if ( $row && $row->{last_modified} ) {
+            $tx->req->headers->if_modified_since( $row->{last_modified} );
         }
-        warn "Updating $url.\n";
-
         $q->add(
             $tx => sub {
                 my ( $ua, $tx ) = @_;
                 if ( my $res = $tx->success ) {
                     if ( $res->code eq 200 ) {
                         my $body = $res->body;
-                        open( my $fh, '>', $cache_file )
-                          or die "Can't open cache file $cache_file: $!\n";
-                        print $fh $body;
-                        close($fh);
+                        my $feed = $self->feedr->parse($body);
+                        if ($row) {
+                            ## update
+                            $self->db->update(
+                                podcasts => {
+                                    last_modified => time,
+                                    title         => $feed->title
+                                }
+                            );
+                        }
+                        else {
+                            ## insert
+                            my $result = $self->db->insert(
+                                podcasts => {
+                                    last_modified => time,
+                                    url           => $url,
+                                    title         => $feed->title,
+                                    identifier    => slugify( $feed->title )
+                                }
+                            );
+                            $podcast_id = $result->last_insert_id;
+                        }
+                        $self->db->delete(
+                            podcasts_episodes => { podcast_id => $podcast_id } );
+                        for my $episode ( $feed->items->each ) {
+                            my $episode_id = $self->db->insert(
+                                episodes => {
+                                    description => $episode->description,
+                                    guid        => $episode->id
+                                }
+                            )->last_insert_id;
+                            $self->db->insert(
+                                podcasts_episodes => {
+                                    episode_id => $episode_id,
+                                    podcast_id => $podcast_id,
+                                }
+                            );
+                        }
                     }
                 }
                 else {
@@ -544,53 +475,27 @@ sub download_feeds {
             }
         );
     }
+    $db_tx->commit;
     return $q->wait;
-}
-
-sub load_feeds {
-    my ( $self, @urls ) = @_;
-    if ( !@urls ) {
-        @urls = keys %{ $self->state->{subscriptions} };
-    }
-    my %feeds;
-    for my $url (@urls) {
-
-        my $cache_file = $self->cache_file($url);
-
-        $cache_file = $self->cache_file($url) if !$cache_file;
-        next if !-r $cache_file;
-        if ( my $feed = $self->feedr->parse($cache_file) ) {
-            $feed->source( Mojo::URL->new($url) );
-            $feeds{$url} = $feed;
-        }
-    }
-
-    return \%feeds;
-}
-
-sub write_state {
-    my ($self) = @_;
-    seek $self->state_fh, 0, 0;
-    truncate $self->state_fh, 0;
-    return print { $self->state_fh } encode_json( $self->state );
-}
-
-sub read_state {
-    my ($self)     = @_;
-    my $state_file = path( $self->state_file );
-    my $fh         = $state_file->open( O_RDWR | O_CREAT )
-      or die "Can't open state file $state_file: $!\n";
-    flock( $fh, LOCK_EX | LOCK_NB )
-      or die "Cannot lock $state_file: $!\n";
-    my $content = $state_file->slurp;
-    my $json = decode_json( $content || '{}' );
-    $self->state_fh($fh);
-    return $json;
 }
 
 1;
 
 __DATA__
+
+@@ migrations
+
+-- 1 up
+
+create table podcasts ( id integer primary key, url text, last_modified integer, title text, identifier text);
+create table episodes ( id integer primary key, guid text, description text );
+create table podcasts_episodes ( podcast_id integer, episode_id integer, foreign key( podcast_id ) references podcasts(id), foreign key (episode_id) references episodes(id) );
+
+-- 1 down
+
+drop table podcasts;
+drop table episodes;
+drop table podcasts_episodes;
 
 @@ template.opml
 
