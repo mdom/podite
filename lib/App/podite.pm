@@ -177,14 +177,6 @@ has config => sub {
     return $self->state->{config};
 };
 
-has 'state_fh';
-
-has state => sub {
-    shift->read_state;
-};
-
-has needs_update => 0;
-
 has feeds => sub {
     my $self = shift;
     if ( $self->needs_update ) {
@@ -196,14 +188,6 @@ has feeds => sub {
 sub get_config {
     my ( $self, $key ) = @_;
     return $self->config->{$key} || $self->defaults->{$key};
-}
-
-sub flush {
-    my $self = shift;
-    if ( $self->state_fh ) {
-        $self->write_state;
-    }
-    return;
 }
 
 sub query_feeds {
@@ -294,22 +278,14 @@ sub status {
     my ($self) = @_;
     my @rows;
     my @spec;
-    my @feeds = grep { $self->is_active($_) } $self->sort_feeds('title');
-    for my $feed (@feeds) {
-        my @items = $feed->items->each;
-        my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
-        for my $item (@items) {
-            if ( my $state = $self->item_state($item) ) {
-                for ($state) {
-                    /^(downloaded|hidden)$/ && next;
-                    /^skipped$/ && do { $skipped++; next };
-                }
-            }
-            else {
-                $new++;
-            }
-        }
-        my @row = ( $new, $skipped, $total, $feed->title );
+    my @podcasts = $self->db->select( podcasts => ['*'], { active => 1 } )->hashes->each;
+    for my $podcast (@podcasts) {
+	my %state = map { $_->{state} => $_->{total} }  $self->db->query('select count(*) as total, state from episodes join podcasts_episodes on episode_id = episodes.id where podcast_id = ? group by state', $podcast->{id})->hashes->each;
+
+	my $total = 0;
+	$total += $_ for values %state;
+
+        my @row = ( $state{new} || 0, $state{skipped} || 0, $total, $podcast->{title} );
         for my $i ( 0 .. 2 ) {
             my $len = length( $row[$i] );
             $spec[$i] = $len if $len >= ( $spec[$i] // 0 );
@@ -385,7 +361,6 @@ sub output_filename {
 
 sub list {
     my ( $self, $list ) = @_;
-    $self->state->{last_list} = $list;
     return list_things($list);
 }
 
@@ -444,13 +419,11 @@ sub add_feeds {
 
 sub update_feeds {
     my ( $self, @identifiers ) = @_;
-    use Mojo::Util 'dumper';
     my $db_tx = $self->db->begin;
     if ( !@identifiers ) {
         @identifiers =
           $self->db->select( podcasts => ['identifier'], { active => 1 } )
           ->arrays->flatten->each;
-        warn dumper( \@identifiers );
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
     for my $identifier (@identifiers) {
@@ -482,9 +455,6 @@ sub update_feeds {
                                 title         => $feed->title
                             },
                             { id => $podcast_id }
-                        );
-                        $self->db->delete(
-                            podcasts_episodes => { podcast_id => $podcast_id }
                         );
                         $self->insert_or_update_episodes( $podcast_id,
                             $feed->items->each );
@@ -579,7 +549,7 @@ __DATA__
 -- 1 up
 
 create table podcasts ( id integer primary key, url text, last_modified integer, title text, identifier text, active integer default 1);
-create table episodes ( id integer primary key, guid text, description text, state text );
+create table episodes ( id integer primary key, guid text, description text, state text default 'new' );
 create table podcasts_episodes ( podcast_id integer, episode_id integer, foreign key( podcast_id ) references podcasts(id), foreign key (episode_id) references episodes(id) );
 create table enclosures ( id integer primary key, type text, length integer, url text );
 create table episodes_enclosures ( episode_id integer, enclosure_id integer, foreign key( episode_id ) references episodes(id), foreign key (enclosure_id) references enclosures(id));

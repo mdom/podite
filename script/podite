@@ -9,7 +9,6 @@ my ($class, $opts) = class_optargs('App::podite');
 eval "require $class" or die $@;
 my $cmd = $class->new;
 $cmd->run($opts);
-$cmd->flush;
 
 exit 0;
 
