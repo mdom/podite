@@ -36,8 +36,16 @@ cmd 'App::podite' => (
 subcmd 'App::podite::new' =>
   ( comment => 'Update all feeds and list new episodes' );
 
-subcmd 'App::podite::update' =>
-  ( comment => 'Update all feeds and list feeds' );
+subcmd 'App::podite::update' => (
+    comment => 'Update all feeds and list feeds',
+    optargs => sub {
+        arg podcast => (
+            isa      => 'ArrayRef',
+            comment  => 'podcast to update',
+            required => 0
+        );
+    }
+);
 
 subcmd 'App::podite::status' => ( comment => 'List feeds' );
 
@@ -101,14 +109,19 @@ subcmd 'App::podite::opml' => (
     },
 );
 
-subcmd 'App::podite::opml::import' =>
-  ( comment => 'Import feeds from opml file' );
+subcmd 'App::podite::opml::import' => (
+    comment => 'Import feeds from opml file',
+    optargs => sub {
+        arg opml_file =>
+          ( isa => 'Str', comment => 'Import file', required => 1 );
+    },
+);
 
 subcmd 'App::podite::opml::export' => (
     comment => 'Export feeds to opml file',
     optargs => sub {
         arg opml_file =>
-          ( isa => 'Str', comment => 'Target file', required => 1 );
+          ( isa => 'Str', comment => 'Export file', required => 1 );
     },
 );
 
@@ -252,8 +265,8 @@ sub export_opml {
     my ( $self, $file ) = @_;
     my $mt = Mojo::Template->new( vars => 1 );
     $mt->parse( data_section(__PACKAGE__)->{'template.opml'} );
-    $file->spurt( b( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) )
-          ->encode );
+    my $feeds = $self->db->select( podcasts => ['*'] )->hashes;
+    $file->spurt( b( $mt->process( { feeds => $feeds } ) )->encode );
     return;
 }
 
@@ -414,17 +427,46 @@ sub delete_feeds {
 }
 
 sub add_feeds {
-    my ( $self, @urls ) = @_;
+    my ( $self, @args ) = @_;
+    my @identifiers;
+    while ( my ( $identifier, $url ) = splice( @args, 0, 2 ) ) {
+        push @identifiers, $identifier;
+        my $result = $self->db->insert(
+            podcasts => {
+                url        => $url,
+                identifier => $identifier,
+            }
+        );
+    }
+    $self->update_feeds(@identifiers);
+    return;
+}
+
+sub update_feeds {
+    my ( $self, @identifiers ) = @_;
+    use Mojo::Util 'dumper';
     my $db_tx = $self->db->begin;
+    if ( !@identifiers ) {
+        @identifiers =
+          $self->db->select( podcasts => ['identifier'], { active => 1 } )
+          ->arrays->flatten->each;
+        warn dumper( \@identifiers );
+    }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-    for my $url (@urls) {
-        my $tx = $self->ua->build_tx( GET => $url );
+    for my $identifier (@identifiers) {
+        warn "Update $identifier\n";
         my $row = $self->db->select(
-            podcasts => [ 'last_modified', 'id' ],
-            { url => $url }
+            podcasts => [ 'url', 'last_modified', 'id' ],
+            { identifier => $identifier }
         )->hash;
-        my $podcast_id = $row ? $row->{id} : undef;
-        if ( $row && $row->{last_modified} ) {
+
+        next if !$row;
+
+        my $url = $row->{url};
+        my $tx = $self->ua->build_tx( GET => $url );
+
+        my $podcast_id = $row->{id};
+        if ( $row->{last_modified} ) {
             $tx->req->headers->if_modified_since( $row->{last_modified} );
         }
         $q->add(
@@ -434,44 +476,18 @@ sub add_feeds {
                     if ( $res->code eq 200 ) {
                         my $body = $res->body;
                         my $feed = $self->feedr->parse($body);
-                        if ($row) {
-                            ## update
-                            $self->db->update(
-                                podcasts => {
-                                    last_modified => time,
-                                    title         => $feed->title
-                                }
-                            );
-                        }
-                        else {
-                            ## insert
-                            my $result = $self->db->insert(
-                                podcasts => {
-                                    last_modified => time,
-                                    url           => $url,
-                                    title         => $feed->title,
-                                    identifier    => slugify( $feed->title )
-                                }
-                            );
-                            $podcast_id = $result->last_insert_id;
-                        }
+                        $self->db->update(
+                            podcasts => {
+                                last_modified => time,
+                                title         => $feed->title
+                            },
+                            { id => $podcast_id }
+                        );
                         $self->db->delete(
                             podcasts_episodes => { podcast_id => $podcast_id }
                         );
-                        for my $episode ( $feed->items->each ) {
-                            my $episode_id = $self->db->insert(
-                                episodes => {
-                                    description => $episode->description,
-                                    guid        => $episode->id
-                                }
-                            )->last_insert_id;
-                            $self->db->insert(
-                                podcasts_episodes => {
-                                    episode_id => $episode_id,
-                                    podcast_id => $podcast_id,
-                                }
-                            );
-                        }
+                        $self->insert_or_update_episodes( $podcast_id,
+                            $feed->items->each );
                     }
                 }
                 else {
@@ -487,6 +503,73 @@ sub add_feeds {
     return $q->wait;
 }
 
+sub insert_or_update_episodes {
+    my ( $self, $podcast_id, @episodes ) = @_;
+    my @guids = map { $_->id } @episodes;
+    my %seen_guids =
+      map { $_->{guid} => $_->{id} }
+      $self->db->select(
+        episodes => [ 'id', 'guid' ] => { guid => { -in => \@guids } } )
+      ->hashes->each;
+
+    ## BEWARE $epsiode->id is eiter the link or guid of the episode
+    ## $episode_id is the primary key of the episode table
+
+    for my $episode (@episodes) {
+        my $episode_id = $seen_guids{ $episode->id };
+        if ($episode_id) {
+            $self->db->update(
+                episodes => {
+                    description => $episode->description,
+                },
+                { id => $episode_id }
+            );
+        }
+        else {
+            ## insert
+            $episode_id = $self->db->insert(
+                episodes => {
+                    description => $episode->description,
+                    guid        => $episode->id
+                }
+            )->last_insert_id;
+            $self->db->insert(
+                podcasts_episodes => {
+                    episode_id => $episode_id,
+                    podcast_id => $podcast_id,
+                }
+            );
+        }
+        $self->insert_or_update_enclosures( $episode_id,
+            $episode->enclosures->each );
+    }
+}
+
+sub insert_or_update_enclosures {
+    my ( $self, $episode_id, @enclosures ) = @_;
+
+    ## TODO only delete enclosures not references anymore
+
+    $self->db->query(
+'delete from enclosures where id in ( select enclosure_id from episodes_enclosures where episode_id = ?)',
+        $episode_id
+    );
+    $self->db->query( 'delete from episodes_enclosures where episode_id = ?',
+        $episode_id );
+    for my $enclosure (@enclosures) {
+        my $enclosure_id = $self->db->insert(
+            enclosures => {
+                length => $enclosure->length,
+                type   => $enclosure->type,
+                url    => $enclosure->url
+            }
+        )->last_insert_id;
+        $self->db->insert( episodes_enclosures =>
+              { enclosure_id => $enclosure_id, episode_id => $episode_id } );
+    }
+    return;
+}
+
 1;
 
 __DATA__
@@ -495,9 +578,11 @@ __DATA__
 
 -- 1 up
 
-create table podcasts ( id integer primary key, url text, last_modified integer, title text, identifier text);
-create table episodes ( id integer primary key, guid text, description text );
+create table podcasts ( id integer primary key, url text, last_modified integer, title text, identifier text, active integer default 1);
+create table episodes ( id integer primary key, guid text, description text, state text );
 create table podcasts_episodes ( podcast_id integer, episode_id integer, foreign key( podcast_id ) references podcasts(id), foreign key (episode_id) references episodes(id) );
+create table enclosures ( id integer primary key, type text, length integer, url text );
+create table episodes_enclosures ( episode_id integer, enclosure_id integer, foreign key( episode_id ) references episodes(id), foreign key (enclosure_id) references enclosures(id));
 
 -- 1 down
 
@@ -514,7 +599,7 @@ drop table podcasts_episodes;
 	</head>
 	<body>
 % for my $feed ( @$feeds ) {
-		<outline text="<%== $feed->title %>"<% if ($feed->description) { %> description="<%== $feed->description %>" <% } %>type="rss" xmlUrl="<%== $feed->source %>" />
+		<outline text="<%== $feed->{title} %>"<% if ($feed->{description}) { %> description="<%== $feed->{description} %>" <% } %> type="rss" xmlUrl="<%== $feed->{url} %>" />
 % }
 	</body>
 </opml>

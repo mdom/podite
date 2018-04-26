@@ -1,11 +1,11 @@
 package App::podite::update;
 use Mojo::Base 'App::podite';
-
-has needs_update => 1;
+use Mojo::Util 'dumper';
 
 sub run {
     my ( $self, $opts ) = @_;
-    $self->status;
+    warn dumper($opts);
+    $self->update_feeds( @{ $opts->{podcasts} || [] } );
 }
 
 1;
