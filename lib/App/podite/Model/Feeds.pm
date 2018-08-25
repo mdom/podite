@@ -1,8 +1,5 @@
 package App::podite::Model::Feeds;
-use Mojo::Base -base;
-
-has 'sql';
-has db => sub { shift->sql->db };
+use Mojo::Base 'App::podite::Model';
 
 sub find {
     my ( $self, $where ) = @_;
