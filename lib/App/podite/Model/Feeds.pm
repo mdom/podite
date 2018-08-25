@@ -6,7 +6,7 @@ has db => sub { shift->sql->db };
 
 sub find {
     my ( $self, $where ) = @_;
-    $self->db->select( feeds => '*', $where )->hashes->each;
+    $self->db->select( feeds => '*', $where )->hashes;
 }
 
 sub exists {

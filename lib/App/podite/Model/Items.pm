@@ -6,7 +6,7 @@ has db => sub { shift->sql->db };
 
 sub find {
     my ( $self, $where ) = @_;
-    $self->db->select( items => '*', $where )->hashes->each;
+    $self->db->select( items => '*', $where )->hashes;
 }
 
 sub delete {

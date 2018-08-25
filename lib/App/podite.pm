@@ -358,7 +358,7 @@ sub update {
   Feed:
     for my $url (@urls) {
 
-        my $feed = $self->feeds->find( { url => $url } );
+        my $feed = $self->feeds->find( { url => $url } )->first;
 
         my $tx = $self->ua->build_tx( GET => $url );
         if ( $feed && $feed->{last_modified} ) {

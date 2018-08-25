@@ -4,7 +4,7 @@ use Mojo::Util 'tablify';
 
 sub run {
     my $self = shift;
-    my $list = [ map { [ $_->{title}, $_->{enclosure} ] } $self->items->find ];
+    my $list = [ map { [ $_->{title}, $_->{enclosure} ] } $self->items->find->each ];
     print tablify($list);
 };
 

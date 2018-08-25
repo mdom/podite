@@ -5,7 +5,8 @@ use Mojo::Util 'tablify';
 
 sub run {
     my ($self) = @_;
-    print tablify ( [ map { [ $_->{url}, $_->{title} ] } $self->feeds->find ] );
+    print tablify (
+        [ map { [ $_->{url}, $_->{title} ] } $self->feeds->find->each ] );
 }
 
 1;
