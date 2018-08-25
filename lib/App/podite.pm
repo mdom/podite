@@ -1,19 +1,15 @@
 package App::podite;
 use Mojo::Base -base;
 
-use Fcntl qw(:flock O_RDWR O_CREAT);
-use File::stat;
 use Mojo::Feed::Reader;
-
 use Mojo::SQLite;
-use DBD::SQLite;
-
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Loader qw(data_section);
 use Mojo::Template;
 use Mojo::URL;
 use Mojo::Util 'slugify', 'encode';
 use Mojo::ByteStream 'b';
+use Mojo::Date;
 
 use App::podite::Directory;
 use App::podite::Render 'render_content';
@@ -368,15 +364,12 @@ sub update {
   Feed:
     for my $url (@urls) {
 
-        my $cache_file = $self->cache_dir->child( slugify($url) );
+        my $feed = $self->feeds->find( { url => $url } );
 
         my $tx = $self->ua->build_tx( GET => $url );
-        if ( -e $cache_file ) {
-            my $date = Mojo::Date->new( stat($cache_file)->mtime );
-            $tx->req->headers->if_modified_since($date);
+        if ( $feed && $feed->{last_modified} ) {
+            $tx->req->headers->if_modified_since( $feed->{last_modified} );
         }
-        warn "Updating $url.\n";
-
         $q->add(
             $tx => sub {
                 my ( $ua, $tx ) = @_;
@@ -389,13 +382,14 @@ sub update {
                             return;
                         }
 
-                        open( my $fh, '>', $cache_file )
-                          or die "Can't open cache file $cache_file: $!\n";
-                        print $fh $body;
-                        close($fh);
-                        $self->feeds->update(
-                            $url => { title => $feed->title } )
-                          if $feed->title;
+                        $self->feeds->add_or_update(
+                            {
+                                url           => $url,
+                                title         => $feed->title,
+                                last_modified => $res->headers->last_modified
+                                  || Mojo::Date->new,
+                            }
+                        );
                         $feed->items->each(
                             sub { $self->items->add_or_update( $url, $_ ) } );
                     }
