@@ -105,15 +105,9 @@ sub add_feed {
     my @updates;
     for my $url (@urls) {
         $url = Mojo::URL->new($url)->to_string;
-        eval { $self->feeds->add( { url => $url } ) };
-        if ( $@ =~ /UNIQUE constrain/ ) {
-            warn qq{Feed "$url" already added\n};
-        }
-        else {
-            push @updates, $url;
-        }
+        eval { $self->feeds->add_or_update( { url => $url } ) };
     }
-    $self->update(@updates) if @updates;
+    $self->update(@urls);
     return;
 }
 
