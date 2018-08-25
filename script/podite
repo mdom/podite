@@ -1,10 +1,14 @@
 #!/usr/bin/perl
 
-use Mojo::Base -strict;
 use lib 'lib';
-use App::podite;
+use Mojo::Base -strict;
+use OptArgs2 'class_optargs';
+use App::podite::OptArgs;
 
-exit App::podite->new->run(@ARGV);
+my ( $class, $opts ) = class_optargs('App::podite');
+
+eval "require $class" or die $@;
+$class->new->run($opts);
 
 __END__
 

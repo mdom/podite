@@ -5,6 +5,9 @@ use Fcntl qw(:flock O_RDWR O_CREAT);
 use File::stat;
 use Mojo::Feed::Reader;
 
+use Mojo::SQLite;
+use DBD::SQLite;
+
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Loader qw(data_section);
 use Mojo::Template;
@@ -14,9 +17,11 @@ use Mojo::ByteStream 'b';
 
 use App::podite::Directory;
 use App::podite::Render 'render_content';
-use App::podite::UI qw(menu choose_one choose_many prompt list_things yesno);
 use App::podite::URLQueue;
 use App::podite::Util 'path';
+use App::podite::Migrations;
+use App::podite::Model::Feeds;
+use App::podite::Model::Items;
 
 our $VERSION = "0.03";
 
@@ -37,9 +42,17 @@ has share_dir => sub {
     path($dir)->child('podite')->make_path;
 };
 
-has state_file => sub {
-    shift->share_dir->child('state');
+has feeds => sub { App::podite::Model::Feeds->new( sql => shift->sqlite ) };
+has items => sub { App::podite::Model::Items->new( sql => shift->sqlite ) };
+
+has sqlite => sub {
+    my $db     = shift->share_dir->child('podite.sqlite');
+    my $sqlite = Mojo::SQLite->new("sqlite:$db");
+    $sqlite->auto_migrate(1)->migrations->from_data('App::podite::Migrations');
+    return $sqlite;
 };
+
+has db => sub { shift->sqlite->db };
 
 has cache_dir => sub {
     shift->share_dir->child('cache')->make_path;
@@ -68,25 +81,9 @@ has config => sub {
     return $self->state->{config};
 };
 
-has 'state_fh';
-
-has state => sub {
-    shift->read_state;
-};
-
-has feeds => sub { {} };
-
 sub get_config {
     my ( $self, $key ) = @_;
     return $self->config->{$key} || $self->defaults->{$key};
-}
-
-sub DESTROY {
-    my $self = shift;
-    if ( $self->state_fh ) {
-        $self->write_state;
-    }
-    return;
 }
 
 sub query_feeds {
@@ -109,15 +106,18 @@ sub items {
 
 sub add_feed {
     my ( $self, @urls ) = @_;
+    my @updates;
     for my $url (@urls) {
-        next if $self->feeds->{$url};
         $url = Mojo::URL->new($url)->to_string;
-        $self->update($url);
-        if ( $self->feeds->{$url} && !$self->state->{subscriptions}->{$url} ) {
-            $self->state->{subscriptions}->{$url} =
-              {};
+        eval { $self->feeds->add( { url => $url } ) };
+        if ( $@ =~ /UNIQUE constrain/ ) {
+            warn qq{Feed "$url" already added\n};
+        }
+        else {
+            push @updates, $url;
         }
     }
+    $self->update(@updates) if @updates;
     return;
 }
 
@@ -162,192 +162,17 @@ sub deactivate_feed {
     return;
 }
 
-sub run {
-
-    my ( $self, @argv ) = @_;
-
-    $self->update;
-
-    if ( my $cmd = shift @argv ) {
-        if ( $cmd eq 'new' ) {
-            $self->download(
-                [ values %{ $self->feeds } ],
-                sub { $self->item_is_new( $_[0] ) }
-            );
-            exit 0;
-        }
-    }
-
-    $self->status;
-
-    menu(
-        [
-            "manage feeds" => [ sub { $self->submenu_manage_feeds } ],
-            status         => sub { $self->status; return 1; },
-            update         => sub { $self->update; $self->status; return 1; },
-            download       => sub {
-                my $feeds =
-                  choose_many( 'filter by feed' => sub { $self->query_feeds } )
-                  or return 1;
-
-                my $filter = choose_one(
-                    'filter by state' => [
-                        [ all => sub { 1 } ],
-                        [
-                            new => sub {
-                                $self->item_is_new( $_[0] );
-                            },
-                        ],
-                        [
-                            'new & skipped' => sub {
-                                my $state = $self->item_state($_);
-                                !$state || $state eq 'skipped';
-                            }
-                        ],
-                    ]
-                ) or return 1;
-                $self->download( $feeds, $filter );
-                return 1;
-            },
-            configure => [ sub { $self->submenu_configure } ],
-            quit      => sub { 0 },
-        ]
-    );
-
-    say "Bye.";
-    exit 0;
-}
-
 sub is_active {
     my ( $self, $feed ) = @_;
     return !$self->state->{subscriptions}->{ $feed->source }->{inactive};
-}
-
-sub submenu_manage_feeds {
-    my ($self) = @_;
-    my @commands = (
-        'add feed' => [
-            'add feed with url' => sub {
-                my $url = prompt('url for new feed');
-                return 1 if !$url;
-                $self->add_feed($url);
-                return 1;
-            },
-            'search and add feed' => sub {
-                my $term = prompt('search term') or return 1;
-
-                my $result = $self->directory->search($term);
-                if ( !@$result ) {
-                    warn "No results.\n";
-                    return 1;
-                }
-
-                my $selection = [
-                    map {
-                        [ $_->{title} . "(" . $_->{website} . ")", $_->{url} ]
-                    } @$result
-                ];
-                my $selected = choose_many( $term => $selection );
-                $self->add_feed(@$selected) if $selected;
-                return 1;
-            },
-        ],
-        'delete feed' => sub {
-            my $feeds =
-              choose_many( 'which feeds' => sub { $self->query_feeds } )
-              or return 1;
-            $self->delete_feed(@$feeds);
-            return 1;
-        },
-        'change feed url' => sub {
-            my $feed = choose_one( 'change feed', sub { $self->query_feeds } )
-              or return 1;
-
-            my $new_url = prompt('new url for feed') or return 1;
-
-            $self->change_feed_url( $feed, $new_url );
-            return 1;
-        },
-        'import feeds from opml' => sub {
-            my $file = prompt('filename');
-            return 1 if !$file;
-            if ( !-e $file ) {
-                warn "File $file not found.\n";
-                return 1;
-            }
-            my @subscriptions = $self->feedr->parse_opml( path($file) );
-            if (@subscriptions) {
-                my $new_feeds =
-                  choose_many( 'which feeds' =>
-                      [ map { [ $_->{text} => $_->{xmlUrl} ] } @subscriptions ]
-                  );
-                if ($new_feeds) {
-                    $self->add_feed(@$new_feeds);
-                }
-            }
-            return 1;
-        },
-        'export feeds to opml' => sub {
-            my $file = prompt('filename');
-            return 1 if !$file;
-            if ( -e $file ) {
-                my $overwrite = yesno('Overwrite existing file');
-                return 1 if !$overwrite;
-            }
-            $self->export_opml( path($file) );
-            return 1;
-        },
-    );
-
-    my @feeds    = values %{ $self->feeds };
-    my $active   = grep { $self->is_active($_) } @feeds;
-    my $inactive = @feeds - $active;
-
-    if ($active) {
-        push @commands, 'deactivate feed' => sub {
-            my $feed = choose_many( 'change feed', sub { $self->query_feeds } )
-              or return 1;
-            $self->deactivate_feed($feed);
-            return 1;
-        };
-    }
-
-    if ($inactive) {
-        push @commands, 'activate feed' => sub {
-            my $feed = choose_many(
-                'change feed',
-                sub {
-                    $self->query_feeds( sub { !$self->is_active( $_[0] ) } );
-                }
-            ) or return 1;
-            $self->activate_feed($feed);
-            return 1;
-        };
-    }
-
-    return \@commands;
-}
-
-sub submenu_configure {
-    my $self = shift;
-    my @commands;
-    for my $key ( sort keys %{ $self->defaults } ) {
-        my $val = $self->get_config($key);
-        push @commands, "$key ($val)" => sub {
-            my $arg = prompt($key);
-            return if !defined $arg;
-            ## TODO Check if output_filename compiles and give the user an example
-            $self->config->{$key} = $arg;
-        };
-    }
-    return \@commands,;
 }
 
 sub export_opml {
     my ( $self, $file ) = @_;
     my $mt = Mojo::Template->new( vars => 1 );
     $mt->parse( data_section(__PACKAGE__)->{'template.opml'} );
-    $file->spurt( b( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) )
+    $file->spurt(
+        b( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) )
           ->encode );
     return;
 }
@@ -537,20 +362,13 @@ sub read_cached_feed {
 sub update {
     my ( $self, @urls ) = @_;
     if ( !@urls ) {
-        @urls = keys %{ $self->state->{subscriptions} };
+        @urls = $self->feeds->all_urls;
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
   Feed:
     for my $url (@urls) {
 
         my $cache_file = $self->cache_dir->child( slugify($url) );
-
-        if ( exists $self->state->{subscriptions}->{$url}
-            && $self->state->{subscriptions}->{$url}->{inactive} )
-        {
-            $self->read_cached_feed( $url => $cache_file );
-            next;
-        }
 
         my $tx = $self->ua->build_tx( GET => $url );
         if ( -e $cache_file ) {
@@ -575,10 +393,11 @@ sub update {
                           or die "Can't open cache file $cache_file: $!\n";
                         print $fh $body;
                         close($fh);
-                        $self->cache_feed( $url => $self->feedr->parse($body) );
-                    }
-                    elsif ( $res->code eq 304 ) {
-                        $self->read_cached_feed( $url => $cache_file );
+                        $self->feeds->update(
+                            $url => { title => $feed->title } )
+                          if $feed->title;
+                        $feed->items->each(
+                            sub { $self->items->add_or_update( $url, $_ ) } );
                     }
                 }
                 else {
@@ -591,26 +410,6 @@ sub update {
         );
     }
     return $q->wait;
-}
-
-sub write_state {
-    my ($self) = @_;
-    seek $self->state_fh, 0, 0;
-    truncate $self->state_fh, 0;
-    return print { $self->state_fh } encode_json( $self->state );
-}
-
-sub read_state {
-    my ($self)     = @_;
-    my $state_file = path( $self->state_file );
-    my $fh         = $state_file->open( O_RDWR | O_CREAT )
-      or die "Can't open state file $state_file: $!\n";
-    flock( $fh, LOCK_EX | LOCK_NB )
-      or die "Cannot lock $state_file: $!\n";
-    my $content = $state_file->slurp;
-    my $json = decode_json( $content || '{}' );
-    $self->state_fh($fh);
-    return $json;
 }
 
 1;
