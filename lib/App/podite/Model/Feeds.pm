@@ -1,6 +1,8 @@
 package App::podite::Model::Feeds;
 use Mojo::Base 'App::podite::Model';
 
+has table => 'feeds';
+
 sub find {
     my ( $self, $where ) = @_;
     $self->db->select( feeds => '*', $where )->hashes;

@@ -11,7 +11,9 @@ create table feeds (
     id integer primary key,
     url text not null unique,
     title text,
-    last_modified text
+    last_modified text,
+    enabled integer default 1,
+    list_order integer
 );
 
 create table items (
@@ -28,5 +30,6 @@ create table items (
 
     downloaded integer default 0,
     hidden integer default 0,
+    list_order integer,
     foreign key (feed) references feeds(id)
 );

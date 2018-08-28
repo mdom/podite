@@ -38,7 +38,7 @@ sub add_or_update {
     my $exists = $self->db->select( items => id => { link => $link } )->array;
 
     if ($exists) {
-        $self->db->update( items => $item => { link => $link } );
+        $self->db->update( $item => { link => $link } );
     }
     else {
         $self->db->insert( items => $item );
