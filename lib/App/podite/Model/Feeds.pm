@@ -28,11 +28,6 @@ sub add_or_update {
     $tx->commit;
 }
 
-sub delete {
-    my ( $self, $url ) = @_;
-    $self->db->delete( feeds => { url => $url } );
-}
-
 sub all_urls {
     shift->db->select( feeds => 'url' )->arrays->flatten->each;
 }

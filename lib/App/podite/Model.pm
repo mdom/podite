@@ -9,6 +9,11 @@ sub update {
     $self->update( $self->table, @_ );
 }
 
+sub delete {
+    my $self = shift;
+    $self->delete( $self->table, @_ );
+}
+
 sub find_and_save_order {
     my $self    = shift;
     my $results = $self->find(@_);

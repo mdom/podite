@@ -123,16 +123,6 @@ sub change_feed_url {
     return;
 }
 
-sub delete_feed {
-    my ( $self, @feeds ) = @_;
-    for my $feed (@feeds) {
-        delete $self->feeds->{ $feed->source };
-        delete $self->state->{subscriptions}->{ $feed->source };
-        unlink $self->cache_dir->child( slugify( $feed->source ) )->to_string;
-    }
-    return;
-}
-
 sub activate_feed {
     my ( $self, $feeds ) = @_;
     for my $feed (@$feeds) {
