@@ -1,9 +1,22 @@
 package App::podite::Model::Items;
 use Mojo::Base 'App::podite::Model';
 
+has table => 'items';
+
 sub find {
-    my ( $self, $where ) = @_;
-    $self->db->select( items => '*', $where )->hashes;
+    my ( $self, $where, $order ) = @_;
+    if ( !exists $where->{'feeds.enabled'} ) {
+        $where->{'feeds.enabled'} = 1;
+    }
+    my ( $where_stmt, @bind ) = $self->sql->abstract->where( $where, $order );
+    $self->db->query(
+        qq{
+        select items.*, feeds.url as feed_url
+            from items
+            join feeds on feeds.id = items.feed
+         $where_stmt
+        }, @bind
+    )->hashes;
 }
 
 sub delete {

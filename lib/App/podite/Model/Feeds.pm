@@ -5,6 +5,9 @@ has table => 'feeds';
 
 sub find {
     my ( $self, $where ) = @_;
+    if ( !exists $where->{enabled} ) {
+        $where->{enabled} = 1;
+    }
     $self->db->select( feeds => '*', $where )->hashes;
 }
 
