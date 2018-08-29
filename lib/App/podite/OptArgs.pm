@@ -45,7 +45,15 @@ subcmd 'App::podite::feeds' => (
 subcmd 'App::podite::update' => ( comment => 'update feeds' );
 subcmd 'App::podite::export' => ( comment => 'export feeds to opml' );
 
-subcmd 'App::podite::episodes' => ( comment => 'list episodes' );
+subcmd 'App::podite::episodes' => (
+    comment => 'list episodes',
+    optargs => sub {
+        opt one_line => (
+            isa     => 'Flag',
+            comment => 'show compact episode list',
+        );
+    },
+);
 
 subcmd "App::podite::move" => (
     comment => "change feed url",
