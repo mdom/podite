@@ -19,7 +19,7 @@ create table feeds (
 create table items (
     id integer primary key,
     feed integer,
-    link text not null,
+    guid text not null,
     enclosure text not null,
 
     title text,
@@ -28,8 +28,8 @@ create table items (
     author text,
     published text,
 
-    downloaded integer default 0,
-    hidden integer default 0,
+    state text not null check (state in ('new', 'downloaded', 'hidden')),
+
     list_order integer,
     foreign key (feed) references feeds(id)
 );

@@ -4,14 +4,48 @@ use Mojo::Base -base;
 has 'sql';
 has db => sub { shift->sql->db };
 
+sub select {
+    my $self = shift;
+    $self->db->select( $self->table, @_ );
+}
+
 sub update {
     my $self = shift;
-    $self->update( $self->table, @_ );
+    $self->db->update( $self->table, @_ );
 }
 
 sub delete {
     my $self = shift;
-    $self->delete( $self->table, @_ );
+    $self->db->delete( $self->table, @_ );
+}
+
+sub insert {
+    my $self = shift;
+    $self->db->insert( $self->table, @_ );
+}
+
+sub find_selection {
+    my ( $self, $selection ) = @_;
+    my ( @result, @in );
+    for ( map { split(',') } @{$selection} ) {
+        if (/^\*$/) {
+            return { list_order => { '!=', undef } };
+        }
+        elsif (/^(\d+)-(\d+)$/) {
+            push @result, { '>=', $1, '<=', $2 };
+        }
+        elsif (/^(\d+)-$/) {
+            push @result, { '>=', $1 };
+        }
+        elsif (/^(\d+)$/) {
+            push @in, $1;
+        }
+    }
+    if (@in) {
+        push @result, { -in => \@in };
+    }
+    my $column = $self->table . '.list_order';
+    return $self->find( { $column => \@result } );
 }
 
 sub find_and_save_order {
@@ -19,10 +53,11 @@ sub find_and_save_order {
     my $results = $self->find(@_);
     if ( $results->size ) {
         my $tx = $self->db->begin;
-        $self->db->update( { list_order => 0 } );
+        $self->update( { list_order => 0 } );
         my $i = 1;
         for my $item ( $results->each ) {
-            $self->db->update( { list_order => $i++ }, { id => $item->{id} } );
+            $item->{list_order} = $i;
+            $self->update( { list_order => $i++ }, { id => $item->{id} } );
         }
         $tx->commit;
     }

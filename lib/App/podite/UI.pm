@@ -6,7 +6,7 @@ use Mojo::Util 'encode', 'term_escape';
 use Carp ();
 
 our @EXPORT_OK =
-  ( 'menu', 'choose_many', 'prompt', 'choose_one', 'list_things', 'yesno' );
+  ( 'menu', 'expand_list', 'choose_many', 'prompt', 'choose_one', 'list_things', 'yesno' );
 
 sub prompt {
     my ($msg) = @_;

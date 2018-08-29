@@ -1,6 +1,7 @@
 package App::podite::Render;
 use Mojo::Base -strict;
 use Exporter 'import';
+use Text::Wrap;
 
 use Mojo::DOM;
 
@@ -8,8 +9,7 @@ our @EXPORT_OK = ('render_content');
 
 sub render_content {
     my ($item) = shift;
-    my $summary = render_dom( Mojo::DOM->new( $item->content ) );
-    return $summary;
+    return fill('  ','  ', render_dom( Mojo::DOM->new( $item->{content} ) ));
 }
 
 sub render_dom {

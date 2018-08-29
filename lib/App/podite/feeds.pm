@@ -9,8 +9,8 @@ sub run {
       $opts->{all} ? { -in => [ 0, 1 ] } : $opts->{disabled} ? 0 : 1;
     print tablify (
         [
-            map { [ $_->{url}, $_->{title} ] }
-              $self->feeds->find( { enabled => $enabled } )->each
+            map { [ $_->{list_order}, $_->{url}, $_->{title} ] }
+              $self->feeds->find_and_save_order( { enabled => $enabled } )->each
         ]
     );
 }

@@ -5,31 +5,31 @@ has table => 'feeds';
 
 sub find {
     my ( $self, $where ) = @_;
-    if ( !exists $where->{enabled} ) {
+    if ( !exists $where->{enabled} && !exists $where->{list_order} ) {
         $where->{enabled} = 1;
     }
-    $self->db->select( feeds => '*', $where )->hashes;
+    $self->select( '*', $where )->hashes;
 }
 
 sub exists {
     my ( $self, $feed ) = @_;
-    $self->db->select( feeds => id => { url => $feed->{url} } )->array;
+    $self->select( id => { url => $feed->{url} } )->array;
 }
 
 sub add_or_update {
     my ( $self, $feed ) = @_;
     my $tx = $self->db->begin;
     if ( $self->exists($feed) ) {
-        $self->db->update( feeds => $feed, { url => $feed->{url} } );
+        $self->update( $feed, { url => $feed->{url} } );
     }
     else {
-        $self->db->insert( feeds => $feed );
+        $self->insert($feed);
     }
     $tx->commit;
 }
 
 sub all_urls {
-    shift->db->select( feeds => 'url' )->arrays->flatten->each;
+    shift->select( 'url' )->arrays->flatten->each;
 }
 
 1;

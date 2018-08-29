@@ -5,13 +5,18 @@ has table => 'items';
 
 sub find {
     my ( $self, $where, $order ) = @_;
-    if ( !exists $where->{'feeds.enabled'} ) {
+    if (   !exists $where->{'feeds.enabled'}
+        && !exists $where->{'feeds.list_order'} )
+    {
         $where->{'feeds.enabled'} = 1;
+    }
+    if ( !$order ) {
+        $order = [ 'feed', 'published' ];
     }
     my ( $where_stmt, @bind ) = $self->sql->abstract->where( $where, $order );
     $self->db->query(
         qq{
-        select items.*, feeds.url as feed_url
+        select items.*, feeds.url as feed_url, feeds.title as feed_title
             from items
             join feeds on feeds.id = items.feed
          $where_stmt
@@ -21,42 +26,35 @@ sub find {
 
 sub delete {
     my ( $self, $id ) = @_;
-    $self->db->delete( items => { id => $id } );
+    $self->delete({ id => $id } );
 }
 
 sub add_or_update {
     my ( $self, $url, $item ) = @_;
     my $tx = $self->db->begin;
 
-    my $enclosure = $item->enclosures->first->url;
-
-    if ( !$enclosure ) {
+    if ( !$item->{enclosure} ) {
         warn "Item without enclosure\n";
         return;
     }
 
-    my $link = $item->link;
-
-    die "Item in $url without link.\n" if !$link;
-
-    $item = $item->to_hash;
-
     $item->{feed} = \[ '(select id from feeds where url = ?)', $url ];
-    $item->{enclosure} = $enclosure;
 
-    delete $item->{guid};
-    delete $item->{id};
-    delete $item->{enclosures};
-
-    my $exists = $self->db->select( items => id => { link => $link } )->array;
+    my $exists = $self->select( id => { link => $item->{link} } )->array;
 
     if ($exists) {
-        $self->db->update( $item => { link => $link } );
+        $self->update( $item => { guid => $item->{guid} } );
     }
     else {
-        $self->db->insert( items => $item );
+        $item->{state} = 'new';
+        $self->insert( $item );
     }
     return $tx->commit;
+}
+
+sub set_state {
+    my ( $self, $state, $where ) = @_;
+    $self->update( { state => $state }, $where );
 }
 
 1;
