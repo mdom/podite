@@ -7,6 +7,12 @@ sub run {
 
     my $where = { state => { '!=' => "hidden" } };
 
+    if ( $opts->{feed} ) {
+        my @feed_ids =
+          map { $_->{id} } $self->feeds->find_selection( $opts->{feed} )->each;
+        $where->{feed} = { -in => \@feed_ids };
+    }
+
     my @items = $self->items->find_and_save_order($where)->each;
 
     if ( $opts->{one_line} ) {

@@ -52,6 +52,12 @@ subcmd 'App::podite::episodes' => (
             isa     => 'Flag',
             comment => 'show compact episode list',
         );
+        arg feed => (
+                isa      => 'ArrayRef',
+                isa_name => 'FEED',
+                comment  => 'feed urls',
+                greedy   => 1,
+            );
     },
 );
 
