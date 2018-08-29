@@ -4,6 +4,7 @@ use OptArgs2;
 
 cmd 'App::podite' => (
     comment => 'the demo command',
+    abbrev => 1,
     optargs => sub {
         arg command => (
             isa      => 'SubCmd',
