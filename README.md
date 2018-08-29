@@ -22,64 +22,47 @@ The easiest way to install podite is with
 
     cpanm git://github.com/mdom/podite.git
 
-# USAGE
+# EXAMPLES
 
-_podite_ is a menu based tool. Just calling podite will bring you to the main
-menu. Every submenu or action has a preceding number. You can choose an entry
-by entering its number and pressing enter.
+    $ podite --help
 
-When you start podite, it will update all your feeds and print an
-overwview. For every feed it will print its new items, skipped items and
-the total number of items. You can always update your feeds again by using
-the main menu action _update_ or print your feed stats with _status_.
+    $ podite add http://feeds.twit.tv/floss.xml https://gastropod.com/feed/
 
-In general, when the prompt ends with a single >, you can pick
-only one of the choices given. When the prompt ends with double >,
-you can make more than one selection, either seperated with spaces or
-commas. You can also use ranges. E.g. "2-5 7,9" to choose 2,3,4,5,7,9
-from the list. If the second number in a range is omitted, all remaining
-choices are selected. E.g. "7-" to choose 7,8,9 from the list. You can
-say _\*_ to choose everything.
+    $ podite feeds
+    1 http://feeds.twit.tv/floss.xml   FLOSS Weekly (MP3)
+    2 https://gastropod.com/feed/      Gastropod
 
-You can leave menus by pressing _CTRL-D_. This will also abort an action
-when prompted for arguments.
+    $ podite update
 
-## MENUS
+    $ podite episodes
+    [...]
 
-- manage feeds
+    $ podite download 1 4-6 20-
 
-    This menu is all about managing your feeds.
+# COMMANDS
 
-    - add feed
-        - add feed by url
+- add URL...
 
-            This action will prompt you for an url of an RSS feed and download it.
+    This action will prompt you for an url of an RSS feed and download it.
 
-        - search and add feed
+- delete URL...
 
-            Prompts for a search term and presents you with a list of feeds found
-            on gpodder.net. You can select multiple feeds.
-    - delete feed
+    Deletes one of your feeds. By deleteting a feed you'll loose any
+    data for it, for example the list of downloaded, skipped or ignored
+    feed entries. If you just want to temporarily disable a feed use
+    _disable_.
 
-        Deletes one of your feeds. Prompts for a list of subscribed feeds. By
-        deleteting a feed you'll loose any data for it, for example the list
-        of downloaded, skipped or ignored feed entries. If you just want to
-        temporarily disable a feed use _deactivate feed_.
+- move OLD\_URL NEW\_URL
 
-    - change feed url
+    Changes the url of a feed.
 
-        Changes the url of a feed. Prompts for one feed and the new url you want to
-        subscribe this feed under.
+- disable URL
 
-    - deactivate feed
+    Disable feed. All state is preserved.
 
-        Prompts for a list of feeds to deactivate them. All state is preserved. This
-        menu is hidden if there are not active feeds.
+- enable URL
 
-    - activate feed
-
-        Prompts for a list of feeds to reactivate them. This menu is hidden if there
-        are no deactivated feeds.
+    Enables a formerly disables feed.
 
 - status
 
@@ -92,28 +75,9 @@ when prompted for arguments.
 
     Updates all feeds and show their status.
 
-- download
+- download EPISODES
 
-    Downloads or hides a list of episodes. You are first prompted for a list
-    of podcasts and then an episode filter. You can either filter by "new",
-    "new and skipped" and "all" episodes. The last filter also includes
-    hidden episodes. Then podite show the list of all selected episodes with a
-    little summary. The you will be prompted for a list of episodes you want
-    to download. Then you can select which episodes should be hidden. After
-    that your episodes will be downloaded.
-
-- configure
-
-    Configure podite. You are presented with a list of configuration options than
-    you can change.
-
-    - download\_dir
-
-        Base directory where downloaded podcasts will be saved.
-
-- quit
-
-    Quit podite.
+    Downloads episodes.
 
 # COPYRIGHT AND LICENSE
 
@@ -135,3 +99,11 @@ along with this program.  If not, see &lt;http://www.gnu.org/licenses/>.
 # AUTHOR
 
 Mario Domgoergen <mario@domgoergen.com>
+
+# POD ERRORS
+
+Hey! **The above document had some coding errors, which are explained below:**
+
+- Around line 57:
+
+    '=item' outside of any '=over'
