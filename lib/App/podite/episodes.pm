@@ -5,7 +5,7 @@ use Mojo::Util 'tablify';
 sub run {
     my ( $self, $opts ) = @_;
 
-    my $where = { state => { '!=' => "hidden" } };
+    my $where = { state => { -not_in => [ "hidden", "downloaded" ] } };
 
     if ( $opts->{feed} ) {
         my @feed_ids =
