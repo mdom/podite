@@ -68,11 +68,13 @@ subcmd "App::podite::move" => (
             isa      => 'Str',
             required => 1,
             comment  => 'old url',
+            isa_name => 'URL',
         );
         arg to => (
             isa      => 'Str',
             required => 1,
             comment  => 'new url',
+            isa_name => 'URL',
         );
     },
 );
