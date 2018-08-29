@@ -82,24 +82,6 @@ sub get_config {
     return $self->config->{$key} || $self->defaults->{$key};
 }
 
-sub query_feeds {
-    my ( $self, $filter ) = @_;
-    $filter ||= sub { $self->is_active( $_[0] ) };
-    my $query = [
-        map { [ $_->title => $_ ] }
-        grep { $filter->($_) } $self->sort_feeds('title')
-    ];
-    return $query;
-}
-
-sub items {
-    my ( $self, @feeds ) = @_;
-    return (
-        sort { $b->published <=> $a->published }
-        map  { $_->items->each } @feeds
-    );
-}
-
 sub add_feed {
     my ( $self, @urls ) = @_;
     my @updates;
@@ -111,42 +93,6 @@ sub add_feed {
     return;
 }
 
-sub change_feed_url {
-    my ( $self, $feed, $new_url ) = @_;
-    if ( $feed && $new_url ) {
-        $self->feeds->{$new_url} = delete $self->feeds->{ $feed->source };
-        $self->state->{subscriptions}->{$new_url} =
-          delete $self->state->{subscriptions}->{ $feed->source };
-        $self->cache_dir->child( slugify( $feed->source ) )
-          ->move_to( $self->cache_dir->child( slugify($new_url) )->to_string );
-    }
-    return;
-}
-
-sub activate_feed {
-    my ( $self, $feeds ) = @_;
-    for my $feed (@$feeds) {
-        my $url = $feed->source;
-        $self->state->{subscriptions}->{$url}->{inactive} = 0;
-        $self->update($url);
-    }
-    return;
-}
-
-sub deactivate_feed {
-    my ( $self, $feeds ) = @_;
-    for my $feed (@$feeds) {
-        my $url = $feed->source;
-        $self->state->{subscriptions}->{$url}->{inactive} = 1;
-    }
-    return;
-}
-
-sub is_active {
-    my ( $self, $feed ) = @_;
-    return !$self->state->{subscriptions}->{ $feed->source }->{inactive};
-}
-
 sub export_opml {
     my ( $self, $file ) = @_;
     my $mt = Mojo::Template->new( vars => 1 );
@@ -155,26 +101,6 @@ sub export_opml {
         b( $mt->process( { feeds => [ values %{ $self->feeds } ] } ) )
           ->encode );
     return;
-}
-
-sub item_is_new {
-    my ( $self, $item ) = @_;
-    return !$self->item_state($item);
-}
-
-sub sort_feeds {
-    my ( $self, $sort_by ) = @_;
-    my @feeds = values %{ $self->feeds };
-    if ( $sort_by eq 'title' ) {
-        return ( sort { lc( $a->title ) cmp lc( $b->title ) } @feeds );
-    }
-    elsif ( $sort_by eq 'added' ) {
-        my $states = $self->state->{subscriptions};
-        return map { $_->[1] }
-          sort     { $a->[0] cmp $b->[0] }
-          map { [ $states->{ $_->source }->{date_added}, $_ ] } @feeds;
-    }
-    die "Unknown sort key\n";
 }
 
 sub status {
