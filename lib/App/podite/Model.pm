@@ -25,7 +25,7 @@ sub insert {
 }
 
 sub find {
-    shift->select('*', @_)->hashes;
+    shift->select( '*', @_ )->hashes;
 }
 
 sub find_selection {

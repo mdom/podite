@@ -32,8 +32,13 @@ sub run {
 
     print encode 'UTF-8', tablify(
         [
-            map { [ $_->{list_order}, substr( $_->{name}, 0, 60 ), substr( $_->{artist}, 0,30 ) ] }
-              @feeds
+            map {
+                [
+                    $_->{list_order},
+                    substr( $_->{name},   0, 60 ),
+                    substr( $_->{artist}, 0, 30 )
+                ]
+            } @feeds
         ]
     );
 }
