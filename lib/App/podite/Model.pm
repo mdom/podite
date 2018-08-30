@@ -57,7 +57,7 @@ sub find_and_save_order {
     my $results = $self->find(@_);
     if ( $results->size ) {
         my $tx = $self->db->begin;
-        $self->update( { list_order => 0 } );
+        $self->update( { list_order => undef } );
         my $i = 1;
         for my $item ( $results->each ) {
             $item->{list_order} = $i;
