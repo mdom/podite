@@ -14,7 +14,7 @@ cmd 'App::podite' => (
     },
 );
 
-cmd 'App::podite::itunes' => (
+subcmd 'App::podite::itunes' => (
     comment => 'search the itunes store',
     optargs => sub {
         arg term => (
