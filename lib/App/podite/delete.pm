@@ -3,13 +3,14 @@ use Mojo::Base 'App::podite';
 
 sub run {
     my ( $self, $opts ) = @_;
-    my @feeds = @{ $opts->{feed} };
-    return if !@feeds;
-    my $tx = $self->users->db->begin;
 
-    my @ids = $self->feeds->all->map( sub { $_->{id} } )->each;
-    $self->users->delete( { id   => { -in => \@ids } } );
+    my @ids = map { $_->{id} }
+      $self->feeds->find_selection( $opts->{feed} )->each;
+
+    my $tx = $self->sqlite->db->begin;
+
     $self->items->delete( { feed => { -in => \@ids } } );
+    $self->feeds->delete( { id   => { -in => \@ids } } );
 
     $tx->commit;
 }
