@@ -9,16 +9,19 @@ has base_url => sub {
 
 sub run {
     my ( $self, $opts ) = @_;
-    my $url   = $self->base_url->query( [ term => $opts->{term} ] );
-    my $i     = 1;
-    my @feeds = grep { $_->{url} } map {
-        {
+    my $url = $self->base_url->query( [ term => $opts->{term} ] );
+    my $i = 1;
+    my @feeds;
+    for ( @{ $self->ua->get($url)->result->json->{results} } ) {
+        next if !$_->{feedUrl};
+        push @feeds,
+          {
             url        => $_->{feedUrl},
             name       => $_->{trackName},
-            artist       => $_->{artistName},
+            artist     => $_->{artistName},
             list_order => $i++,
-        }
-    } @{ $self->ua->get($url)->result->json->{results} };
+          };
+    }
 
     my $tx = $self->db->begin;
     $self->db->delete('search_results');
