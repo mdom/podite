@@ -68,10 +68,6 @@ has config => sub {
     }
 };
 
-has directory => sub {
-    App::podite::Directory->new;
-};
-
 sub add_feed {
     my ( $self, @urls ) = @_;
     my @updates;

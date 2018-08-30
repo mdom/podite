@@ -24,11 +24,6 @@ sub find {
     )->hashes;
 }
 
-sub delete {
-    my ( $self, $id ) = @_;
-    $self->delete({ id => $id } );
-}
-
 sub add_or_update {
     my ( $self, $url, $item ) = @_;
     my $tx = $self->db->begin;
