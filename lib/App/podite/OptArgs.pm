@@ -14,6 +14,18 @@ cmd 'App::podite' => (
     },
 );
 
+cmd 'App::podite::itunes' => (
+    comment => 'search the itunes store',
+    optargs => sub {
+        arg term => (
+            isa      => 'Str',
+            isa_name => 'TERM',
+            required => 1,
+            comment  => 'search term',
+        );
+    },
+);
+
 for (qw(delete enable disable add )) {
 
     subcmd "App::podite::$_" => (

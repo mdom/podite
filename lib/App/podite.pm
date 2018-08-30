@@ -18,6 +18,7 @@ use App::podite::Util 'path';
 use App::podite::Migrations;
 use App::podite::Model::Feeds;
 use App::podite::Model::Items;
+use App::podite::Model::SearchResults;
 
 our $VERSION = "0.03";
 
@@ -40,6 +41,8 @@ has share_dir => sub {
 
 has feeds => sub { App::podite::Model::Feeds->new( sql => shift->sqlite ) };
 has items => sub { App::podite::Model::Items->new( sql => shift->sqlite ) };
+has search_results =>
+  sub { App::podite::Model::SearchResults->new( sql => shift->sqlite ) };
 
 has sqlite => sub {
     my $db     = shift->share_dir->child('podite.sqlite');
@@ -203,7 +206,7 @@ sub update {
         }
         $q->add(
             $tx => sub {
-                $self->handle_response($url, @_);
+                $self->handle_response( $url, @_ );
             }
         );
     }

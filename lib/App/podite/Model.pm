@@ -24,6 +24,10 @@ sub insert {
     $self->db->insert( $self->table, @_ );
 }
 
+sub find {
+    shift->select('*', @_)->hashes;
+}
+
 sub find_selection {
     my ( $self, $selection ) = @_;
     my ( @result, @in );

@@ -5,6 +5,14 @@ use Mojo::Base -base;
 
 __DATA__
 @@ migrations
+-- 2 up
+
+create table search_results (
+    id integer primary key,
+    url text not null,
+    list_order integer
+);
+
 -- 1 up
 
 create table feeds (
