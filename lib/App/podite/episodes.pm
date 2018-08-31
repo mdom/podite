@@ -13,6 +13,10 @@ sub run {
         $where->{feed} = { -in => \@feed_ids };
     }
 
+    if ( $opts->{new} ) {
+        $where->{state} = 'new';
+    }
+
     my @items = $self->items->find_and_save_order($where)->each;
 
     if ( $opts->{one_line} ) {

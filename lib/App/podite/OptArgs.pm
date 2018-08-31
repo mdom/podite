@@ -65,6 +65,10 @@ subcmd 'App::podite::episodes' => (
             isa     => 'Flag',
             comment => 'show compact episode list',
         );
+        opt new => (
+            isa     => 'Flag',
+            comment => 'show only new episodes',
+        );
         arg feed => (
                 isa      => 'ArrayRef',
                 isa_name => 'FEED',
