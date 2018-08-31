@@ -191,7 +191,9 @@ sub update {
         @urls = $self->feeds->all_urls;
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
-  Feed:
+
+    $self->items->set_state( 'seen', { state => 'new' } );
+
     for my $url (@urls) {
 
         my $feed = $self->feeds->find( { url => $url } )->first;
