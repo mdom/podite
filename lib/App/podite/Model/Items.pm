@@ -35,14 +35,14 @@ sub add_or_update {
 
     $item->{feed} = \[ '(select id from feeds where url = ?)', $url ];
 
-    my $exists = $self->select( id => { link => $item->{link} } )->array;
+    my $exists = $self->select( id => { guid => $item->{guid} } )->array;
 
     if ($exists) {
         $self->update( $item => { guid => $item->{guid} } );
     }
     else {
         $item->{state} = 'new';
-        $self->insert( $item );
+        $self->insert($item);
     }
     return $tx->commit;
 }

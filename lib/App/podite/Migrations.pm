@@ -5,6 +5,30 @@ use Mojo::Base -base;
 
 __DATA__
 @@ migrations
+-- 4 up
+
+create table items_new (
+    id          integer primary key,
+    feed        integer,
+    guid        text not null,
+    enclosure   text not null,
+    title       text,
+    content     text,
+    description text,
+    author      text,
+    published   text,
+    state       text not null,
+    list_order  integer,
+
+    foreign key (feed) references feeds(id),
+    check (state in ('new', 'seen', 'downloaded', 'hidden')),
+    unique (feed, guid)
+);
+
+insert into items_new select * from items;
+drop table items;
+alter table items_new rename to items;
+
 -- 3 up
 
 create table items_new (
