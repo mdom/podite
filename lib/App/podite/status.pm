@@ -1,9 +1,8 @@
-package App::podite::update;
+package App::podite::status;
 use Mojo::Base 'App::podite';
 
 sub run {
     my $self = shift;
-    $self->update;
     $self->status;
 }
 

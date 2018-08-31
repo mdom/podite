@@ -7,9 +7,10 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Loader qw(data_section);
 use Mojo::Template;
 use Mojo::URL;
-use Mojo::Util 'slugify', 'encode';
+use Mojo::Util 'slugify', 'encode', 'tablify';
 use Mojo::ByteStream 'b';
 use Mojo::Date;
+use Mojo::Collection 'c';
 
 use App::podite::Directory;
 use App::podite::Render 'render_content';
@@ -90,33 +91,30 @@ sub export_opml {
 
 sub status {
     my ($self) = @_;
-    my @rows;
-    my @spec;
-    my @feeds = grep { $self->is_active($_) } $self->sort_feeds('title');
-    for my $feed (@feeds) {
-        my @items = $feed->items->each;
-        my ( $skipped, $new, $total ) = ( 0, 0, scalar @items );
-        for my $item (@items) {
-            if ( my $state = $self->item_state($item) ) {
-                for ($state) {
-                    /^(downloaded|hidden)$/ && next;
-                    /^skipped$/ && do { $skipped++; next };
-                }
-            }
-            else {
-                $new++;
-            }
+    my $results = $self->db->query(
+        q{
+        select feeds.id, feeds.title ,state,count(*) as count from items join feeds on feed = feeds.id group by state, feed;
         }
-        my @row = ( $new, $skipped, $total, $feed->title );
-        for my $i ( 0 .. 2 ) {
-            my $len = length( $row[$i] );
-            $spec[$i] = $len if $len >= ( $spec[$i] // 0 );
-        }
-        push @rows, \@row;
+    )->hashes;
+    my @table;
+    my %feeds;
+    for ( $results->each ) {
+        $feeds{ $_->{id} }->{ $_->{state} } = $_->{count};
+        $feeds{ $_->{id} }->{total} += $_->{count};
+        $feeds{ $_->{id} }->{title} = $_->{title};
+        $feeds{ $_->{id} }->{id}    = $_->{id};
     }
-    my $fmt = join( ' / ', map { "\%${_}d" } @spec ) . "   %s";
-    list_things( [ map { sprintf( $fmt, @$_ ) } @rows ] );
-    return 1;
+    my @feeds = sort { $a->{id} <=> $b->{id} } values %feeds;
+    $self->feeds->save_order( c(@feeds) );
+    for ( sort { $a->{list_order} <=> $b->{list_order} } @feeds ) {
+        push @table,
+          [
+            $_->{list_order}, $_->{title},
+            $_->{new} || 0, $_->{seen} || 0,
+            $_->{total}
+          ];
+    }
+    print tablify( \@table );
 }
 
 sub render_item {

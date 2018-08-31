@@ -41,6 +41,9 @@ for (qw(delete enable disable add )) {
     );
 
 }
+
+subcmd 'App::podite::status' => ( comment => 'show status of feeds' );
+
 subcmd 'App::podite::feeds' => (
     comment => 'list feeds',
     optargs => sub {

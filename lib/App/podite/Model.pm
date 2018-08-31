@@ -52,9 +52,8 @@ sub find_selection {
     return $self->find( { $column => \@result } );
 }
 
-sub find_and_save_order {
-    my $self    = shift;
-    my $results = $self->find(@_);
+sub save_order {
+    my ($self, $results ) = @_;
     if ( $results->size ) {
         my $tx = $self->db->begin;
         $self->update( { list_order => undef } );
@@ -66,6 +65,12 @@ sub find_and_save_order {
         $tx->commit;
     }
     return $results;
+}
+
+sub find_and_save_order {
+    my $self = shift;
+    my $results = $self->find(@_);
+    return $self->save_order( $results );
 }
 
 1;
