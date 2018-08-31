@@ -71,6 +71,7 @@ subcmd 'App::podite::episodes' => (
         opt new => (
             isa     => 'Flag',
             comment => 'show only new episodes',
+            alias   => 'n',
         );
         arg feed => (
             isa      => 'ArrayRef',
