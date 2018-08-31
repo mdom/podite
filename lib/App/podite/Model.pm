@@ -33,7 +33,8 @@ sub find_selection {
     my ( @result, @in );
     for ( map { split(',') } @{$selection} ) {
         if (/^\*$/) {
-            return { list_order => { '!=', undef } };
+            @result = { '!=', undef };
+            last;
         }
         elsif (/^(\d+)-(\d+)$/) {
             push @result, { '>=', $1, '<=', $2 };
