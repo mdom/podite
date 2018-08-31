@@ -4,7 +4,7 @@ use OptArgs2;
 
 cmd 'App::podite' => (
     comment => 'the demo command',
-    abbrev => 1,
+    abbrev  => 1,
     optargs => sub {
         arg command => (
             isa      => 'SubCmd',
@@ -73,11 +73,11 @@ subcmd 'App::podite::episodes' => (
             comment => 'show only new episodes',
         );
         arg feed => (
-                isa      => 'ArrayRef',
-                isa_name => 'FEED',
-                comment  => 'feed urls',
-                greedy   => 1,
-            );
+            isa      => 'ArrayRef',
+            isa_name => 'FEED',
+            comment  => 'feed urls',
+            greedy   => 1,
+        );
     },
 );
 
