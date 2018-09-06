@@ -91,30 +91,34 @@ sub export_opml {
 
 sub status {
     my ($self) = @_;
-    my $results = $self->db->query(
+    my $feeds = $self->db->query(
         q{
-        select feeds.id, feeds.title ,state,count(*) as count from items join feeds on feed = feeds.id group by state, feed;
+        select
+                feeds.id,
+                feeds.title,
+                sum( case when state = "downloaded" then 1 else 0 end ) as downloaded,
+                sum( case when state = "hidden"     then 1 else 0 end ) as hidden,
+                sum( case when state = "seen"       then 1 else 0 end ) as seen,
+                sum( case when state = "new"        then 1 else 0 end ) as new,
+                count(*) as total
+            from items
+            join feeds on feed = feeds.id
+            group by feed
+            order by feeds.id;
         }
     )->hashes;
-    my @table;
-    my %feeds;
-    for ( $results->each ) {
-        $feeds{ $_->{id} }->{ $_->{state} } = $_->{count};
-        $feeds{ $_->{id} }->{total} += $_->{count};
-        $feeds{ $_->{id} }->{title} = $_->{title};
-        $feeds{ $_->{id} }->{id}    = $_->{id};
-    }
-    my @feeds = sort { $a->{id} <=> $b->{id} } values %feeds;
-    $self->feeds->save_order( c(@feeds) );
-    for ( sort { $a->{list_order} <=> $b->{list_order} } @feeds ) {
-        push @table,
-          [
-            $_->{list_order}, $_->{title},
-            $_->{new} || 0, $_->{seen} || 0,
-            $_->{total}
-          ];
-    }
-    print tablify( \@table );
+    $self->feeds->save_order($feeds);
+    print tablify(
+        $feeds->map(
+            sub {
+                [
+                    $_->{list_order}, $_->{title},
+                    $_->{new} || 0, $_->{seen} || 0,
+                    $_->{total}
+                ];
+            }
+        )->to_array
+    );
 }
 
 sub render_item {
