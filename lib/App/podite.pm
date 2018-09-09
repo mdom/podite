@@ -12,7 +12,6 @@ use Mojo::ByteStream 'b';
 use Mojo::Date;
 use Mojo::Collection 'c';
 
-use App::podite::Directory;
 use App::podite::Render 'render_content';
 use App::podite::URLQueue;
 use App::podite::Util 'path';
@@ -22,6 +21,12 @@ use App::podite::Model::Items;
 use App::podite::Model::SearchResults;
 
 our $VERSION = "0.03";
+
+$SIG{'INT'} = sub {
+    system('tput', 'cnorm');
+    warn "Got sigint, shutting down\n";
+    exit 0;
+};
 
 has ua => sub {
     my $self = shift;
@@ -117,6 +122,12 @@ sub render_item {
       . $summary . "\n";
 }
 
+sub original_url {
+    my ( $self, $tx ) = @_;
+    $tx = $tx->previous while $tx->previous;
+    return $tx->req->url->to_abs;
+}
+
 sub download {
     my ( $self, $selection ) = @_;
 
@@ -126,22 +137,55 @@ sub download {
     return if !@downloads;
 
     my $q = App::podite::URLQueue->new( ua => $self->ua );
+
+    my %positions;
+    my $i = 0;
+
+    system('tput', 'civis');
+
+    $q->on(
+        progress => sub {
+            my ( $event, $tx, $res ) = @_;
+            my $url     = $self->original_url($tx);
+            my $total   = $res->headers->content_length || '0';
+            my $current = $res->content->progress;
+            my $percent = $total == 0 ? 0 : int( $current * 100 / $total );
+
+            my $num = $i - $positions{$url};
+
+            printf("\e[%dA\e[2K%3d%% %s\n\e[%dB", $num, $percent, $url, $num);
+            return;
+        }
+    );
+
+    $q->on(
+        start => sub {
+            my ( $event, $ua, $tx ) = @_;
+            if ( !$tx->previous ) {
+                my $url = $self->original_url($tx);
+                $positions{$url} = $i++;
+                print "  0% $url\n";
+            }
+            return;
+        }
+    );
+
     for my $item (@downloads) {
         my $download_url = Mojo::URL->new( $item->{enclosure} );
         my $output_filename =
           $self->output_filename( $item, $feeds{ $item->{feed_url} } );
         $output_filename->dirname->make_path;
-        say "$download_url -> $output_filename";
         $q->add(
             $download_url => sub {
                 my ( $ua, $tx, ) = @_;
                 $tx->result->content->asset->move_to($output_filename);
                 $self->items->set_state( downloaded => { id => $item->{id} } );
-                warn "Download $output_filename finished\n";
             }
         );
     }
-    return $q->wait;
+    $q->wait;
+    system('tput', 'cnorm');
+    return;
 }
 
 sub output_filename {
