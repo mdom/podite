@@ -28,6 +28,7 @@ sub wait {
 sub start {
     my ( $self, $cb ) = @_;
     return if !@{ $self->queue };
+    $self->{running} = 0;
 
     my $handle_event = sub {
         my ( $ua, $tx ) = @_;
