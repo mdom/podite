@@ -141,6 +141,10 @@ sub download {
     my %positions;
     my $i = 0;
 
+    local %ENV = %ENV;
+    $ENV{MOJO_TMPDIR} =
+      path( $self->config->{download_dir} )->child('.tmp')->make_path;
+
     system( 'tput', 'civis' );
 
     $q->on(
