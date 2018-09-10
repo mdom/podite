@@ -23,7 +23,7 @@ use App::podite::Model::SearchResults;
 our $VERSION = "0.03";
 
 $SIG{'INT'} = sub {
-    system('tput', 'cnorm');
+    system( 'tput', 'cnorm' );
     warn "Got sigint, shutting down\n";
     exit 0;
 };
@@ -141,7 +141,7 @@ sub download {
     my %positions;
     my $i = 0;
 
-    system('tput', 'civis');
+    system( 'tput', 'civis' );
 
     $q->on(
         progress => sub {
@@ -153,7 +153,7 @@ sub download {
 
             my $num = $i - $positions{$url};
 
-            printf("\e[%dA\e[2K%3d%% %s\n\e[%dB", $num, $percent, $url, $num);
+            printf( "\e[%dA\e[2K%3d%% %s\n\e[%dB", $num, $percent, $url, $num );
             return;
         }
     );
@@ -184,7 +184,7 @@ sub download {
         );
     }
     $q->wait;
-    system('tput', 'cnorm');
+    system( 'tput', 'cnorm' );
     return;
 }
 
