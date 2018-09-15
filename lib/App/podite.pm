@@ -7,7 +7,7 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Loader qw(data_section);
 use Mojo::Template;
 use Mojo::URL;
-use Mojo::Util 'slugify', 'encode', 'tablify';
+use Mojo::Util qw(slugify encode tablify term_escape);
 use Mojo::ByteStream 'b';
 use Mojo::Date;
 use Mojo::Collection 'c';
@@ -115,11 +115,15 @@ sub render_item {
     my ( $self, $item ) = @_;
 
     my $summary = substr( render_content($item) || '', 0, 360 );
-    return encode 'UTF-8',
-        $item->{list_order} . ' '
-      . $item->{feed_title} . ': '
-      . $item->{title} . "\n"
-      . $summary . "\n";
+    return encode(
+        'UTF-8',
+        term_escape(
+                $item->{list_order} . ' '
+              . $item->{feed_title} . ': '
+              . $item->{title} . "\n"
+              . $summary . "\n"
+        )
+    );
 }
 
 sub original_url {
