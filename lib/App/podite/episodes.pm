@@ -19,7 +19,31 @@ sub run {
 
     my @items = $self->items->find_and_save_order($where)->each;
 
-    if ( $opts->{one_line} ) {
+    if ( $opts->{interactive} ) {
+        my @downloads;
+        for my $item (@items) {
+			print $self->render_item($item), "\n";
+            print "Download this item [y,n,q,?]? ";
+            my $key = <STDIN>;
+            chomp($key);
+            if ( $key eq 'y' ) {
+                push @downloads, $item->{list_order};
+            }
+            elsif ( $key eq 'n' ) {
+                $self->items->hide( id => $item->{id} );
+            }
+            elsif ( $key eq 'q' ) {
+                return;
+            }
+            else {
+                print "y - download this item\n"
+                  . "n - do not download this item\n"
+                  . "q - quit, do not download this item or any other\n";
+            }
+        }
+        $self->download(\@downloads) if @downloads;
+    }
+    elsif ( $opts->{one_line} ) {
         print tablify(
             [
                 map {

@@ -68,6 +68,11 @@ subcmd 'App::podite::episodes' => (
             isa     => 'Flag',
             comment => 'show compact episode list',
         );
+        opt interactive => (
+            isa     => 'Flag',
+            comment => 'decide podcast state interactively',
+            alias => 'i',
+        );
         opt new => (
             isa     => 'Flag',
             comment => 'show only new episodes',
