@@ -52,4 +52,12 @@ sub set_state {
     $self->update( { state => $state }, $where );
 }
 
+sub hide {
+	shift->set_state( hidden => { @_ } )
+}
+
+sub seen {
+	shift->set_state( seen => { @_ } )
+}
+
 1;
