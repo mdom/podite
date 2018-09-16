@@ -87,6 +87,12 @@ subcmd 'App::podite::episodes' => (
             isa     => 'Str',
             comment => 'display items with format [one-line|full]',
         );
+        opt order => (
+            isa     => 'ArrayRef',
+            comment => "order episodes by property",
+            default => [ 'feed', 'published' ],
+            alias   => 'o',
+        );
         opt state => (
             isa => 'ArrayRef',
             comment =>

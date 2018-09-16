@@ -21,7 +21,8 @@ sub run {
         $where = { state => { -not_in => [ "hidden", "downloaded" ] } };
     }
 
-    my @items = $self->items->find_and_save_order($where)->each;
+    my @items =
+      $self->items->find_and_save_order( $where, $opts->{order} )->each;
 
     if ( $opts->{interactive} ) {
         $self->download_with_prompt(@items);
