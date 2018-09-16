@@ -58,7 +58,17 @@ subcmd 'App::podite::feeds' => (
     }
 );
 
-subcmd 'App::podite::update' => ( comment => 'update feeds' );
+subcmd 'App::podite::update' => (
+    comment => 'update feeds',
+    optargs => sub {
+        opt interactive => (
+            isa     => 'Flag',
+            comment => 'decide podcast state interactively',
+            alias   => 'i',
+        );
+    }
+);
+
 subcmd 'App::podite::export' => ( comment => 'export feeds to opml' );
 
 subcmd 'App::podite::episodes' => (

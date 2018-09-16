@@ -231,7 +231,7 @@ sub update {
     }
     my $q = App::podite::URLQueue->new( ua => $self->ua );
 
-    $self->items->set_state( 'seen', { state => 'new' } );
+    $self->items->set_state( seen => { state => 'new' } );
 
     for my $url (@urls) {
 
@@ -295,6 +295,48 @@ sub handle_response {
             warn "Connection error for $url: $err->{message}\n";
         }
     }
+}
+
+sub download_with_prompt {
+    my ( $self, @items ) = @_;
+    my @downloads;
+    while ( my $item = shift @items ) {
+        print $self->render_item($item), "\n";
+        print "Download this item [y,n,s,S,q,?]? ";
+        my $key = <STDIN>;
+        chomp($key);
+        if ( $key eq 'y' ) {
+            push @downloads, $item->{list_order};
+        }
+        elsif ( $key eq 'n' ) {
+            $self->items->hide( id => $item->{id} );
+            next;
+        }
+        elsif ( $key eq 's' ) {
+            while (@items
+                && $items[0]->{feed_title} eq $item->{feed_title} )
+            {
+                my $item = shift @items;
+                $self->items->seen( id => $item->{id} );
+            }
+        }
+        elsif ( $key eq 'S' ) {
+            $self->items->seen( id => { -in => [ map { $_->{id} } @items ] } );
+            last;
+        }
+        elsif ( $key eq 'q' ) {
+            return;
+        }
+        else {
+            print "y - download this episode\n"
+              . "n - do not download this episode and hide it\n"
+              . "s - skip all episodes of current feed\n"
+              . "S - skip all remaining episodes\n"
+              . "Q - quit, do not download\n";
+        }
+    }
+    $self->download( \@downloads ) if @downloads;
+    return;
 }
 
 1;
