@@ -71,13 +71,18 @@ subcmd 'App::podite::episodes' => (
         opt interactive => (
             isa     => 'Flag',
             comment => 'decide podcast state interactively',
-            alias => 'i',
+            alias   => 'i',
         );
-        opt new => (
-            isa     => 'Flag',
-            comment => 'show only new episodes',
-            alias   => 'n',
+        opt format => (
+            isa     => 'Str',
+            comment => 'display items with format [one-line|full]',
         );
+        for (qw(new hidden seen downloaded)) {
+            opt $_ => (
+                isa     => 'Flag',
+                comment => "show only $_ episodes",
+            );
+        }
         arg feed => (
             isa      => 'ArrayRef',
             isa_name => 'FEED',
