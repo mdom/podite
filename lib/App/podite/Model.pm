@@ -60,7 +60,7 @@ sub find_selection {
 }
 
 sub save_order {
-    my ($self, $results ) = @_;
+    my ( $self, $results ) = @_;
     if ( $results->size ) {
         my $tx = $self->db->begin;
         $self->update( { list_order => undef } );
@@ -75,9 +75,9 @@ sub save_order {
 }
 
 sub find_and_save_order {
-    my $self = shift;
+    my $self    = shift;
     my $results = $self->find(@_);
-    return $self->save_order( $results );
+    return $self->save_order($results);
 }
 
 1;
