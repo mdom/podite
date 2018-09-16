@@ -87,12 +87,12 @@ subcmd 'App::podite::episodes' => (
             isa     => 'Str',
             comment => 'display items with format [one-line|full]',
         );
-        for (qw(new hidden seen downloaded)) {
-            opt $_ => (
-                isa     => 'Flag',
-                comment => "show only $_ episodes",
-            );
-        }
+        opt state => (
+            isa => 'ArrayRef',
+            comment =>
+"show only episodes with state hidden, seen, downloaded or hidden",
+            alias => 's',
+        );
         arg feed => (
             isa      => 'ArrayRef',
             isa_name => 'FEED',

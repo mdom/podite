@@ -13,10 +13,8 @@ sub run {
         $where->{feed} = { -in => \@feed_ids };
     }
 
-    for (qw(new hidden seen downloaded)) {
-        if ( $opts->{$_} ) {
-            push @{ $where->{state}->{-in} }, $_;
-        }
+    if ( $opts->{state} ) {
+        push @{ $where->{state}->{-in} }, @{ $opts->{state} };
     }
 
     if ( !exists $where->{state} ) {
