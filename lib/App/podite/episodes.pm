@@ -14,11 +14,10 @@ sub run {
     }
 
     if ( $opts->{state} ) {
-        push @{ $where->{state}->{-in} }, @{ $opts->{state} };
+        $where->{state} = { -in => $opts->{state} };
     }
-
-    if ( !exists $where->{state} ) {
-        $where = { state => { -not_in => [ "hidden", "downloaded" ] } };
+    else {
+        $where->{state} = { -not_in => [ "hidden", "downloaded" ] };
     }
 
     my @items =
