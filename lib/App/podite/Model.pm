@@ -42,8 +42,14 @@ sub find_selection {
         elsif (/^(\d+)-$/) {
             push @result, { '>=', $1 };
         }
+        elsif (/^-(\d+)$/) {
+            push @result, { '<=', $1 };
+        }
         elsif (/^(\d+)$/) {
             push @in, $1;
+        }
+        else {
+            warn "Can't parse $_ as selection.\n";
         }
     }
     if (@in) {
