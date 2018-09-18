@@ -11,6 +11,7 @@ use Mojo::Util qw(slugify encode tablify term_escape);
 use Mojo::ByteStream 'b';
 use Mojo::Date;
 use Mojo::Collection 'c';
+use Mojo::File 'tempfile';
 
 use App::podite::Render 'render_content';
 use App::podite::URLQueue;
@@ -56,6 +57,8 @@ has sqlite => sub {
     $sqlite->auto_migrate(1)->migrations->from_data('App::podite::Migrations');
     return $sqlite;
 };
+
+has pager => sub { $ENV{PAGER} || "less" };
 
 has db => sub { shift->sqlite->db };
 
@@ -112,9 +115,12 @@ sub status {
 }
 
 sub render_item {
-    my ( $self, $item ) = @_;
+    my ( $self, $item, $max_length ) = @_;
 
-    my $summary = substr( render_content($item) || '', 0, 360 );
+    my $summary = render_content($item) || '';
+    if ($max_length) {
+        $summary = substr( $summary, 0, $max_length );
+    }
     return encode(
         'UTF-8',
         term_escape(
@@ -301,8 +307,8 @@ sub download_with_prompt {
     my ( $self, @items ) = @_;
     my @downloads;
     while ( my $item = shift @items ) {
-        print $self->render_item($item), "\n";
-        print "Download this item [y,n,s,S,q,?]? ";
+        print $self->render_item( $item, 360 ), "\n";
+        print "Download this item [y,n,s,S,i,q,Q,?]? ";
         my $key = <STDIN>;
         chomp($key);
         if ( $key eq 'y' ) {
@@ -312,7 +318,16 @@ sub download_with_prompt {
             $self->items->hide( id => $item->{id} );
             next;
         }
+        elsif ( $key eq 'i' ) {
+            my $file = tempfile->spurt( $self->render_item($item) );
+            system( $self->pager, $file );
+            redo;
+        }
         elsif ( $key eq 's' ) {
+            $self->items->seen( id => $item->{id} );
+            next;
+        }
+        elsif ( $key eq 'S' ) {
             while (@items
                 && $items[0]->{feed_title} eq $item->{feed_title} )
             {
@@ -320,19 +335,21 @@ sub download_with_prompt {
                 $self->items->seen( id => $item->{id} );
             }
         }
-        elsif ( $key eq 'S' ) {
-            $self->items->seen( id => { -in => [ map { $_->{id} } @items ] } );
+        elsif ( $key eq 'q' ) {
             last;
         }
-        elsif ( $key eq 'q' ) {
-            return;
+        elsif ( $key eq 'Q' ) {
+            last;
         }
         else {
             print "y - download this episode\n"
-              . "n - do not download this episode and hide it\n"
-              . "s - skip all episodes of current feed\n"
-              . "S - skip all remaining episodes\n"
+              . "n - do not download this episode, never ask again\n"
+              . "s - skip episodes\n"
+              . "S - skip all remaining episodes of podcast\n"
+              . "i - show complete information for episode\n"
+              . "q - quit interactive mode and download episodes\n"
               . "Q - quit, do not download\n";
+            redo;
         }
     }
     $self->download( \@downloads ) if @downloads;
