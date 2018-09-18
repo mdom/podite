@@ -9,11 +9,14 @@ podite - Command line podcast aggregator
 
 # DESCRIPTION
 
-podite downloads podcasts from a set of subscribed rss and atom feeds. You
-can add feeds by url or search for them on gpodder.net. Feeds can be
-deactivated if you are currently not interested in them without loosing
-the information which episode you already downloaded. Episodes can be
-hidden, so they will not clutter your screen (unless you want to!).
+podite is a modern podcast manager for the command line. It supports
+searching and subscribing via itunes, nonblocking network requests
+and interactive selection of episodes.
+
+Feeds can be disabled if you are currently not interested in them
+without loosing the information which episode you already downloaded.
+Episodes can either be skipped if you are not sure if you want to
+listen to it or hidden, so they will not clutter your screen.
 
 # INSTALLATION
 
@@ -41,28 +44,39 @@ The easiest way to install podite is with
 
 # COMMANDS
 
+The _feed_ subcommand list all subscribed feeds. The number in the
+first column can be used in any subcommand that takes an _FEED_
+as argument. The same applies to the first column in the output of
+_episodes_. Those selection can be either list of elements or
+ranges. See _EXAMPLES_ for an example.
+
 - add URL...
 
     This action will prompt you for an url of an RSS feed and download it.
 
-- delete URL...
+- delete FEED...
 
     Deletes one of your feeds. By deleteting a feed you'll loose any
     data for it, for example the list of downloaded, skipped or ignored
     feed entries. If you just want to temporarily disable a feed use
     _disable_.
 
-- move OLD\_URL NEW\_URL
+- move FEED NEW\_URL
 
     Changes the url of a feed.
 
-- disable URL
+- disable FEED...
 
-    Disable feed. All state is preserved.
+    Disable feeds. All state is preserved.
 
-- enable URL
+- enable FEED...
 
-    Enables a formerly disables feed.
+    Enables formerly disabled feeds.
+
+- feeds
+
+    List all feeds. The number in the first column can be used as
+    argument to all feed related subcommands.
 
 - status
 
@@ -71,11 +85,43 @@ The easiest way to install podite is with
     episode is counted as skipped if you have already seen it in the download
     dialog but haven't downloaded or hidden it.
 
-- update
+- update \[FEED...\]
 
     Updates all feeds and show their status.
 
-- download EPISODES
+- episodes \[FEED...\]
+
+    List all episodes that are not hidden or downloaded. The number in
+    the first column can be used as argument to all episode related
+    subcommands.
+
+    - --interactive -i
+
+        When interactive mode is used, a short description is showed for
+        every episode and then prompts you what to do with the episode. You
+        can select one of the following options:
+
+            y - download this episode
+            n - do not download this episode, never ask again
+            s - skip episodes
+            S - skip all remaining episodes of podcast
+            q - quit interactive mode and download episodes
+            Q - quit, do not download
+            ? - show this list
+
+    - --state -s STATE
+
+        Show only episodes with the selected state. The state can either
+        be _new_, _skipped_, _seen_, _downloaded_ or _hidden_. This
+        option can be given multiple times. Defaults to _new_ and _skipped_.
+
+    - --order ORDER
+
+        List episodes in _ORDER_. This can either be _published_, _feed_
+        or _state_. This options can be given multiple times. Defaults to
+        _feed_ and _published_.
+
+- download EPISODES...
 
     Downloads episodes.
 
@@ -99,11 +145,3 @@ along with this program.  If not, see &lt;http://www.gnu.org/licenses/>.
 # AUTHOR
 
 Mario Domgoergen <mario@domgoergen.com>
-
-# POD ERRORS
-
-Hey! **The above document had some coding errors, which are explained below:**
-
-- Around line 57:
-
-    '=item' outside of any '=over'

@@ -22,11 +22,14 @@ podite - Command line podcast aggregator
 
 =head1 DESCRIPTION
 
-podite downloads podcasts from a set of subscribed rss and atom feeds. You
-can add feeds by url or search for them on gpodder.net. Feeds can be
-deactivated if you are currently not interested in them without loosing
-the information which episode you already downloaded. Episodes can be
-hidden, so they will not clutter your screen (unless you want to!).
+podite is a modern podcast manager for the command line. It supports
+searching and subscribing via itunes, nonblocking network requests
+and interactive selection of episodes.
+
+Feeds can be disabled if you are currently not interested in them
+without loosing the information which episode you already downloaded.
+Episodes can either be skipped if you are not sure if you want to
+listen to it or hidden, so they will not clutter your screen.
 
 =head1 INSTALLATION
 
@@ -54,28 +57,41 @@ L<cpanminus|https://github.com/miyagawa/cpanminus>:
 
 =head1 COMMANDS
 
+The I<feed> subcommand list all subscribed feeds. The number in the
+first column can be used in any subcommand that takes an I<FEED>
+as argument. The same applies to the first column in the output of
+I<episodes>. Those selection can be either list of elements or
+ranges. See I<EXAMPLES> for an example.
+
+=over 4
+
 =item add URL...
 
 This action will prompt you for an url of an RSS feed and download it.
 
-=item delete URL...
+=item delete FEED...
 
 Deletes one of your feeds. By deleteting a feed you'll loose any
 data for it, for example the list of downloaded, skipped or ignored
 feed entries. If you just want to temporarily disable a feed use
 I<disable>.
 
-=item move OLD_URL NEW_URL
+=item move FEED NEW_URL
 
 Changes the url of a feed.
 
-=item disable URL
+=item disable FEED...
 
-Disable feed. All state is preserved.
+Disable feeds. All state is preserved.
 
-=item enable URL
+=item enable FEED...
 
-Enables a formerly disables feed.
+Enables formerly disabled feeds.
+
+=item feeds
+
+List all feeds. The number in the first column can be used as
+argument to all feed related subcommands.
 
 =item status
 
@@ -84,11 +100,47 @@ podcast the number of new, skipped and total episodes are listed. A
 episode is counted as skipped if you have already seen it in the download
 dialog but haven't downloaded or hidden it.
 
-=item update
+=item update [FEED...]
 
 Updates all feeds and show their status.
 
-=item download EPISODES
+=item episodes [FEED...]
+
+List all episodes that are not hidden or downloaded. The number in
+the first column can be used as argument to all episode related
+subcommands.
+
+=over 4
+
+=item --interactive -i
+
+When interactive mode is used, a short description is showed for
+every episode and then prompts you what to do with the episode. You
+can select one of the following options:
+
+    y - download this episode
+    n - do not download this episode, never ask again
+    s - skip episodes
+    S - skip all remaining episodes of podcast
+    q - quit interactive mode and download episodes
+    Q - quit, do not download
+    ? - show this list
+
+=item --state -s STATE
+
+Show only episodes with the selected state. The state can either
+be I<new>, I<skipped>, I<seen>, I<downloaded> or I<hidden>. This
+option can be given multiple times. Defaults to I<new> and I<skipped>.
+
+=item --order ORDER
+
+List episodes in I<ORDER>. This can either be I<published>, I<feed>
+or I<state>. This options can be given multiple times. Defaults to
+I<feed> and I<published>.
+
+=back
+
+=item download EPISODES...
 
 Downloads episodes.
 
