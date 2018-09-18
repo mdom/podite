@@ -318,6 +318,14 @@ sub download_with_prompt {
             $self->items->hide( id => $item->{id} );
             next;
         }
+        elsif ( $key eq 'N' ) {
+            while (@items
+                && $items[0]->{feed_title} eq $item->{feed_title} )
+            {
+                my $item = shift @items;
+                $self->items->hide( id => $item->{id} );
+            }
+        }
         elsif ( $key eq 'i' ) {
             my $file = tempfile->spurt( $self->render_item($item) );
             system( $self->pager, $file );
@@ -344,6 +352,7 @@ sub download_with_prompt {
         else {
             print "y - download this episode\n"
               . "n - do not download this episode, never ask again\n"
+              . "N - do not download any remaining episode of this podcast\n"
               . "s - skip episodes\n"
               . "S - skip all remaining episodes of podcast\n"
               . "i - show complete information for episode\n"

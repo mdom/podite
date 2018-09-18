@@ -103,9 +103,11 @@ ranges. See _EXAMPLES_ for an example.
 
             y - download this episode
             n - do not download this episode, never ask again
+            N - do not download any remaining episode of this podcast
             s - skip episodes
             S - skip all remaining episodes of podcast
             q - quit interactive mode and download episodes
+            i - show complete information for episode
             Q - quit, do not download
             ? - show this list
 
