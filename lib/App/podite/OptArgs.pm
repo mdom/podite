@@ -71,6 +71,22 @@ subcmd 'App::podite::update' => (
 
 subcmd 'App::podite::export' => ( comment => 'export feeds to opml' );
 
+subcmd 'App::podite::config' => (
+    comment => 'manage config',
+    optargs => sub {
+        arg key => (
+            isa     => 'Str',
+            comment => 'Key to get or set',
+			required => 0,
+        );
+        arg value => (
+            isa     => 'Str',
+            comment => 'set KEY to VALUE',
+			required => 0,
+        );
+    }
+);
+
 subcmd 'App::podite::episodes' => (
     comment => 'list episodes',
     optargs => sub {

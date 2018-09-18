@@ -3,6 +3,7 @@ use Mojo::Base -base;
 
 use Mojo::Feed::Reader;
 use Mojo::SQLite;
+
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::Loader qw(data_section);
 use Mojo::Template;
@@ -19,6 +20,7 @@ use App::podite::Util 'path';
 use App::podite::Migrations;
 use App::podite::Model::Feeds;
 use App::podite::Model::Items;
+use App::podite::Model::Config;
 use App::podite::Model::SearchResults;
 
 our $VERSION = "0.03";
@@ -48,6 +50,7 @@ has share_dir => sub {
 
 has feeds => sub { App::podite::Model::Feeds->new( sql => shift->sqlite ) };
 has items => sub { App::podite::Model::Items->new( sql => shift->sqlite ) };
+has config => sub { App::podite::Model::Config->new( sql => shift->sqlite ) };
 has search_results =>
   sub { App::podite::Model::SearchResults->new( sql => shift->sqlite ) };
 
@@ -68,13 +71,6 @@ has cache_dir => sub {
 
 has feedr => sub {
     Mojo::Feed::Reader->new;
-};
-
-has config => sub {
-    {
-        download_dir    => "~/Podcasts",
-        output_template => '<%= "$feed_title/$title.$ext" %>'
-    }
 };
 
 sub add_feed {
@@ -153,7 +149,7 @@ sub download {
 
     local %ENV = %ENV;
     $ENV{MOJO_TMPDIR} =
-      path( $self->config->{download_dir} )->child('.tmp')->make_path;
+      path( $self->config->download_dir )->child('.tmp')->make_path;
 
     system( 'tput', 'civis' );
 
@@ -204,12 +200,12 @@ sub download {
 
 sub output_filename {
     my ( $self, $item, $feed ) = @_;
-    my $template = $self->config->{output_template};
+    my $template = $self->config->output_template;
 
     my $mt = Mojo::Template->new( vars => 1 );
     my $remote_filename =
       Mojo::URL->new( $item->{enclosure} )->path->parts->[-1];
-    my $download_dir = path( $self->config->{download_dir} );
+    my $download_dir = path( $self->config->download_dir );
     my ($remote_ext) = $remote_filename =~ /\.([^.]+)$/;
     my $filename     = $mt->render(
         $template,

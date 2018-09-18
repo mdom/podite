@@ -5,6 +5,17 @@ use Mojo::Base -base;
 
 __DATA__
 @@ migrations
+-- 6 up
+
+create unique index ux_config_key ON config(key);
+
+-- 5 up
+
+create table config (
+	key text not null default "",
+	value text not null default ""
+);
+
 -- 4 up
 
 create table items_new (

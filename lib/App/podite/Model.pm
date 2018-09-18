@@ -4,6 +4,10 @@ use Mojo::Base -base;
 has 'sql';
 sub db { shift->sql->db }
 
+sub query {
+    shift->db->query( @_ );
+}
+
 sub select {
     my $self = shift;
     $self->db->select( $self->table, @_ );
