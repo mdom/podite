@@ -77,6 +77,12 @@ sub add_feed {
     my ( $self, @urls ) = @_;
     my @updates;
     for my $url (@urls) {
+        if ( $url =~ m{^pcast://(.*)} ) {
+            $url = $1;
+        }
+        elsif ( $url =~ m{^podite://subscribe/(.*)} ) {
+            $url = $1;
+        }
         $url = Mojo::URL->new($url)->to_string;
         eval { $self->feeds->add_or_update( { url => $url } ) };
     }
