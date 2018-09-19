@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Podite podcast manager
+Exec=podite add %u
+Type=Application
+Terminal=false
+MimeType=x-scheme-handler/pcast;
